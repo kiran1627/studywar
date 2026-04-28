@@ -1,0 +1,14 @@
+{
+  "name": "StudyWar",
+  "short_name": "StudyWar",
+  "description": "Gamified coding habit tracker - Level up your coding skills every day",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#7c3aed",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/icons/app logo.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/app logo.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable any" }
+  ]
+}
