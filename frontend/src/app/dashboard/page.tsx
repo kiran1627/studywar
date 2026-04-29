@@ -23,7 +23,8 @@ interface UserStats {
 
 export default function DashboardPage() {
   const { user: authUser, loading, refreshUser } = useAuth();
-  const user = authUser as any;
+  const u = authUser as any;
+  const user = authUser;
   const router = useRouter();
   const [stats, setStats] = useState<UserStats>({ totalDays: 0, totalCompleted: 0, monthProgress: 0, totalProblems: 0 });
   const [refreshKey, setRefreshKey] = useState(0);
@@ -62,21 +63,21 @@ export default function DashboardPage() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white">
-              Welcome back, <span className="neon-text">{user.name.split(' ')[0]}</span> 👋
+              Welcome back, <span className="neon-text">{u?.name?.split(' ')[0] || 'Warrior'}</span> 👋
             </h1>
             <div className="flex items-center gap-2 mt-2">
               <span className={`text-xs font-bold px-3 py-1 rounded-full border shadow-sm ${
-                ((user as any).xp || 0) >= 700 ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' :
-                ((user as any).xp || 0) >= 300 ? 'bg-red-500/20 text-red-400 border-red-500/40' :
-                ((user as any).xp || 0) >= 100 ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40' :
+                (u.xp || 0) >= 700 ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' :
+                (u.xp || 0) >= 300 ? 'bg-red-500/20 text-red-400 border-red-500/40' :
+                (u.xp || 0) >= 100 ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40' :
                 'bg-gray-500/20 text-gray-400 border-gray-500/40'
               }`}>
-                {((user as any).xp || 0) >= 700 ? '🏆 Master' :
-                 ((user as any).xp || 0) >= 300 ? '⚔️ Pro' :
-                 ((user as any).xp || 0) >= 100 ? '🎖️ Intermediate' :
+                {(u.xp || 0) >= 700 ? '🏆 Master' :
+                 (u.xp || 0) >= 300 ? '⚔️ Pro' :
+                 (u.xp || 0) >= 100 ? '🎖️ Intermediate' :
                  '🔰 Beginner'}
               </span>
-              <span className="text-xs text-gray-400">Level {(user as any).level || 0}</span>
+              <span className="text-xs text-gray-400">Level {u.level || 0}</span>
             </div>
           </div>
 
@@ -84,7 +85,7 @@ export default function DashboardPage() {
           <div className="w-full sm:w-72 bg-dark-800/60 border border-white/10 rounded-xl p-3">
             <div className="flex justify-between text-xs mb-1 font-medium">
               <span className="text-purple-300">Progression</span>
-              <span className="text-gray-300">{((user as any).xp || 0)} XP</span>
+              <span className="text-gray-300">{(u.xp || 0)} XP</span>
             </div>
             <div className="w-full h-2 bg-dark-700 rounded-full overflow-hidden">
               <motion.div 
@@ -92,10 +93,10 @@ export default function DashboardPage() {
                 initial={{ width: 0 }}
                 animate={{ 
                   width: `${
-                    ((user as any).xp || 0) >= 700 ? 100 :
-                    ((user as any).xp || 0) >= 300 ? (((user as any).xp - 300) / 400) * 100 :
-                    ((user as any).xp || 0) >= 100 ? (((user as any).xp - 100) / 200) * 100 :
-                    (((user as any).xp || 0) / 100) * 100
+                    (u.xp || 0) >= 700 ? 100 :
+                    (u.xp || 0) >= 300 ? ((u.xp - 300) / 400) * 100 :
+                    (u.xp || 0) >= 100 ? ((u.xp - 100) / 200) * 100 :
+                    ((u.xp || 0) / 100) * 100
                   }%`
                 }}
                 transition={{ duration: 1 }}
