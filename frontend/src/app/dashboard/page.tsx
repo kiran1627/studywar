@@ -22,7 +22,8 @@ interface UserStats {
 }
 
 export default function DashboardPage() {
-  const { user, loading, refreshUser } = useAuth();
+  const { user: authUser, loading, refreshUser } = useAuth();
+  const user = authUser as any;
   const router = useRouter();
   const [stats, setStats] = useState<UserStats>({ totalDays: 0, totalCompleted: 0, monthProgress: 0, totalProblems: 0 });
   const [refreshKey, setRefreshKey] = useState(0);
