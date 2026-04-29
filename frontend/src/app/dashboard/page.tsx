@@ -14,6 +14,7 @@ import TasksPanel from '@/components/TasksPanel';
 import Leaderboard from '@/components/Leaderboard';
 import ProblemSection from '@/components/ProblemSection';
 import api from '@/lib/api';
+import AIPlanCard from '@/components/AIPlanCard';
 import ChallengeWidget from '@/components/ChallengeWidget';
 import SmartReminders from '@/components/SmartReminders';
 
@@ -74,6 +75,7 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 space-y-4">
+            <AIPlanCard streak={user.streak || 0} />
             <FocusTimer onSessionComplete={handleSessionComplete} />
             <TasksPanel key={refreshKey} />
           </div>

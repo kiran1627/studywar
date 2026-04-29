@@ -2,8 +2,6 @@ const express = require('express');
 const authMiddleware = require('../middleware/auth');
 const router = express.Router();
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-
 router.post('/chat', authMiddleware, async (req, res) => {
   try {
     const { messages } = req.body;
@@ -22,7 +20,7 @@ router.post('/chat', authMiddleware, async (req, res) => {
     };
 
     // Check if API Key exists
-    if (!OPENROUTER_API_KEY) {
+    if (!process.env.OPENROUTER_API_KEY) {
       // Mock response for local dev without key
       const lastMsg = messages[messages.length - 1]?.content || '';
       return res.json({ 
@@ -33,7 +31,7 @@ router.post('/chat', authMiddleware, async (req, res) => {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
         'HTTP-Referer': process.env.FRONTEND_URL || 'http://localhost:3000',
         'X-Title': 'StudyWar AI Coach',
         'Content-Type': 'application/json'
@@ -77,7 +75,7 @@ Return ONLY a raw JSON array of strings. Example format:
   "Review sorting algorithms"
 ]`;
 
-    if (!OPENROUTER_API_KEY) {
+    if (!process.env.OPENROUTER_API_KEY) {
       // Mock Daily Plan
       return res.json([
         "Complete a morning focus block (6:00 AM - 8:00 AM)",
@@ -89,7 +87,7 @@ Return ONLY a raw JSON array of strings. Example format:
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
