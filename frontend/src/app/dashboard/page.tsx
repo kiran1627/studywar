@@ -24,23 +24,22 @@ interface UserStats {
 export default function DashboardPage() {
   const { user: authUser, loading, refreshUser } = useAuth();
   const u = authUser as any;
-  const user = authUser;
   const router = useRouter();
   const [stats, setStats] = useState<UserStats>({ totalDays: 0, totalCompleted: 0, monthProgress: 0, totalProblems: 0 });
   const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => { if (!loading && !user) router.push('/'); }, [user, loading, router]);
+  useEffect(() => { if (!loading && !u) router.push('/'); }, [u, loading, router]);
 
   const fetchStats = useCallback(async () => {
     try { const res = await api.get('/api/user/stats'); setStats(res.data); }
     catch (err) { console.error('Failed to fetch stats:', err); }
   }, []);
 
-  useEffect(() => { if (user) fetchStats(); }, [user, fetchStats, refreshKey]);
+  useEffect(() => { if (u) fetchStats(); }, [u, fetchStats, refreshKey]);
 
   const handleSessionComplete = () => { setRefreshKey((k) => k + 1); refreshUser(); fetchStats(); };
 
-  if (loading || !user) {
+  if (loading || !u) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-dark-900">
         <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
@@ -106,14 +105,14 @@ export default function DashboardPage() {
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <ScoreCard score={user.score} />
-          <StreakCard streak={user.streak} />
+          <ScoreCard score={u.score} />
+          <StreakCard streak={u.streak} />
           <ProgressCard progress={stats.monthProgress} totalProblems={stats.totalProblems} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 space-y-4">
-            <AIPlanCard streak={user.streak || 0} />
+            <AIPlanCard streak={u.streak || 0} />
             <FocusTimer onSessionComplete={handleSessionComplete} />
             <TasksPanel key={refreshKey} />
           </div>
