@@ -32,7 +32,13 @@ router.get('/dev-login', async (req, res) => {
     }
     const token = generateToken(user._id);
     res.cookie('token', token, cookieOptions);
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard`);
+    
+    let frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    if (frontendUrl.endsWith('/')) {
+      frontendUrl = frontendUrl.slice(0, -1);
+    }
+    
+    res.redirect(`${frontendUrl}/dashboard`);
   } catch (error) {
     console.error('Dev login error:', error);
     res.status(500).send('Dev login failed');
@@ -46,7 +52,13 @@ router.get('/google/callback',
   (req, res) => {
     const token = generateToken(req.user._id);
     res.cookie('token', token, cookieOptions);
-    res.redirect(`${process.env.FRONTEND_URL}/dashboard?token=${token}`);
+    
+    let frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    if (frontendUrl.endsWith('/')) {
+      frontendUrl = frontendUrl.slice(0, -1);
+    }
+    
+    res.redirect(`${frontendUrl}/dashboard?token=${token}`);
   }
 );
 
