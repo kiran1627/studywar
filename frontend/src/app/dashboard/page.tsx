@@ -66,17 +66,17 @@ export default function DashboardPage() {
             </h1>
             <div className="flex items-center gap-2 mt-2">
               <span className={`text-xs font-bold px-3 py-1 rounded-full border shadow-sm ${
-                (user.xp || 0) >= 700 ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' :
-                (user.xp || 0) >= 300 ? 'bg-red-500/20 text-red-400 border-red-500/40' :
-                (user.xp || 0) >= 100 ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40' :
+                ((user as any).xp || 0) >= 700 ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' :
+                ((user as any).xp || 0) >= 300 ? 'bg-red-500/20 text-red-400 border-red-500/40' :
+                ((user as any).xp || 0) >= 100 ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40' :
                 'bg-gray-500/20 text-gray-400 border-gray-500/40'
               }`}>
-                {(user.xp || 0) >= 700 ? '🏆 Master' :
-                 (user.xp || 0) >= 300 ? '⚔️ Pro' :
-                 (user.xp || 0) >= 100 ? '🎖️ Intermediate' :
+                {((user as any).xp || 0) >= 700 ? '🏆 Master' :
+                 ((user as any).xp || 0) >= 300 ? '⚔️ Pro' :
+                 ((user as any).xp || 0) >= 100 ? '🎖️ Intermediate' :
                  '🔰 Beginner'}
               </span>
-              <span className="text-xs text-gray-400">Level {user.level || 0}</span>
+              <span className="text-xs text-gray-400">Level {(user as any).level || 0}</span>
             </div>
           </div>
 
@@ -84,7 +84,7 @@ export default function DashboardPage() {
           <div className="w-full sm:w-72 bg-dark-800/60 border border-white/10 rounded-xl p-3">
             <div className="flex justify-between text-xs mb-1 font-medium">
               <span className="text-purple-300">Progression</span>
-              <span className="text-gray-300">{user.xp || 0} XP</span>
+              <span className="text-gray-300">{((user as any).xp || 0)} XP</span>
             </div>
             <div className="w-full h-2 bg-dark-700 rounded-full overflow-hidden">
               <motion.div 
@@ -92,10 +92,10 @@ export default function DashboardPage() {
                 initial={{ width: 0 }}
                 animate={{ 
                   width: `${
-                    (user.xp || 0) >= 700 ? 100 :
-                    (user.xp || 0) >= 300 ? ((user.xp - 300) / 400) * 100 :
-                    (user.xp || 0) >= 100 ? ((user.xp - 100) / 200) * 100 :
-                    (user.xp / 100) * 100
+                    ((user as any).xp || 0) >= 700 ? 100 :
+                    ((user as any).xp || 0) >= 300 ? (((user as any).xp - 300) / 400) * 100 :
+                    ((user as any).xp || 0) >= 100 ? (((user as any).xp - 100) / 200) * 100 :
+                    (((user as any).xp || 0) / 100) * 100
                   }%`
                 }}
                 transition={{ duration: 1 }}
