@@ -4,11 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import api from '@/lib/api';
 import { disconnectSocket } from '@/lib/socket';
 
-interface User {
-  _id: string; name: string; email: string; picture: string;
-  score: number; streak: number; lastActiveDate: string | null;
-  xp?: number; level?: number;
-}
+import type { User } from '@/types/user';
 
 interface AuthContextType {
   user: User | null; loading: boolean;

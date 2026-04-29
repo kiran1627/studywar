@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import type { User } from '@/types/user';
 import Navbar from '@/components/Navbar';
 import ScoreCard from '@/components/ScoreCard';
 import StreakCard from '@/components/StreakCard';
@@ -22,24 +23,23 @@ interface UserStats {
 }
 
 export default function DashboardPage() {
-  const { user: authUser, loading, refreshUser } = useAuth();
-  const u = authUser as any;
+  const { user, loading, refreshUser } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useState<UserStats>({ totalDays: 0, totalCompleted: 0, monthProgress: 0, totalProblems: 0 });
   const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => { if (!loading && !u) router.push('/'); }, [u, loading, router]);
+  useEffect(() => { if (!loading && !user) router.push('/'); }, [user, loading, router]);
 
   const fetchStats = useCallback(async () => {
     try { const res = await api.get('/api/user/stats'); setStats(res.data); }
     catch (err) { console.error('Failed to fetch stats:', err); }
   }, []);
 
-  useEffect(() => { if (u) fetchStats(); }, [u, fetchStats, refreshKey]);
+  useEffect(() => { if (user) fetchStats(); }, [user, fetchStats, refreshKey]);
 
   const handleSessionComplete = () => { setRefreshKey((k) => k + 1); refreshUser(); fetchStats(); };
 
-  if (loading || !u) {
+  if (loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-dark-900">
         <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
@@ -62,21 +62,21 @@ export default function DashboardPage() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white">
-              Welcome back, <span className="neon-text">{u?.name?.split(' ')[0] || 'Warrior'}</span> 👋
+              Welcome back, <span className="neon-text">{user?.name?.split(' ')[0] || 'Warrior'}</span> 👋
             </h1>
             <div className="flex items-center gap-2 mt-2">
               <span className={`text-xs font-bold px-3 py-1 rounded-full border shadow-sm ${
-                (u.xp || 0) >= 700 ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' :
-                (u.xp || 0) >= 300 ? 'bg-red-500/20 text-red-400 border-red-500/40' :
-                (u.xp || 0) >= 100 ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40' :
+                (user?.xp ?? 0) >= 700 ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' :
+                (user?.xp ?? 0) >= 300 ? 'bg-red-500/20 text-red-400 border-red-500/40' :
+                (user?.xp ?? 0) >= 100 ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40' :
                 'bg-gray-500/20 text-gray-400 border-gray-500/40'
               }`}>
-                {(u.xp || 0) >= 700 ? '🏆 Master' :
-                 (u.xp || 0) >= 300 ? '⚔️ Pro' :
-                 (u.xp || 0) >= 100 ? '🎖️ Intermediate' :
+                {(user?.xp ?? 0) >= 700 ? '🏆 Master' :
+                 (user?.xp ?? 0) >= 300 ? '⚔️ Pro' :
+                 (user?.xp ?? 0) >= 100 ? '🎖️ Intermediate' :
                  '🔰 Beginner'}
               </span>
-              <span className="text-xs text-gray-400">Level {u.level || 0}</span>
+              <span className="text-xs text-gray-400">Level {user?.level ?? 0}</span>
             </div>
           </div>
 
@@ -84,7 +84,7 @@ export default function DashboardPage() {
           <div className="w-full sm:w-72 bg-dark-800/60 border border-white/10 rounded-xl p-3">
             <div className="flex justify-between text-xs mb-1 font-medium">
               <span className="text-purple-300">Progression</span>
-              <span className="text-gray-300">{(u.xp || 0)} XP</span>
+              <span className="text-gray-300">{(user?.xp ?? 0)} XP</span>
             </div>
             <div className="w-full h-2 bg-dark-700 rounded-full overflow-hidden">
               <motion.div 
@@ -92,10 +92,10 @@ export default function DashboardPage() {
                 initial={{ width: 0 }}
                 animate={{ 
                   width: `${
-                    (u.xp || 0) >= 700 ? 100 :
-                    (u.xp || 0) >= 300 ? ((u.xp - 300) / 400) * 100 :
-                    (u.xp || 0) >= 100 ? ((u.xp - 100) / 200) * 100 :
-                    ((u.xp || 0) / 100) * 100
+                    (user?.xp ?? 0) >= 700 ? 100 :
+                    (user?.xp ?? 0) >= 300 ? (((user?.xp ?? 0) - 300) / 400) * 100 :
+                    (user?.xp ?? 0) >= 100 ? (((user?.xp ?? 0) - 100) / 200) * 100 :
+                    ((user?.xp ?? 0) / 100) * 100
                   }%`
                 }}
                 transition={{ duration: 1 }}
@@ -105,14 +105,14 @@ export default function DashboardPage() {
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <ScoreCard score={u.score} />
-          <StreakCard streak={u.streak} />
+          <ScoreCard score={user.score} />
+          <StreakCard streak={user.streak} />
           <ProgressCard progress={stats.monthProgress} totalProblems={stats.totalProblems} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 space-y-4">
-            <AIPlanCard streak={u.streak || 0} />
+            <AIPlanCard streak={user.streak || 0} />
             <FocusTimer onSessionComplete={handleSessionComplete} />
             <TasksPanel key={refreshKey} />
           </div>
