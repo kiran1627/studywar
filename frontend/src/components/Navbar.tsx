@@ -4,6 +4,8 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 
+import Link from 'next/link';
+
 const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
   if (!user) return null;
@@ -13,10 +15,22 @@ const Navbar: React.FC = () => {
       className="fixed top-0 left-0 right-0 z-50 bg-dark-900/80 backdrop-blur-xl border-b border-white/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <motion.div className="flex items-center gap-2" whileHover={{ scale: 1.02 }}>
-            <img src="/icons/app logo.png" alt="SW" className="w-8 h-8 drop-shadow-[0_0_10px_rgba(124,58,237,0.5)]" />
-            <span className="text-xl font-extrabold neon-text">StudyWar</span>
-          </motion.div>
+          <div className="flex items-center gap-6">
+            <Link href="/dashboard">
+              <motion.div className="flex items-center gap-2 cursor-pointer" whileHover={{ scale: 1.02 }}>
+                <img src="/icons/app logo.png" alt="SW" className="w-8 h-8 drop-shadow-[0_0_10px_rgba(124,58,237,0.5)]" />
+                <span className="text-xl font-extrabold neon-text">StudyWar</span>
+              </motion.div>
+            </Link>
+
+            {/* Desktop Nav Links */}
+            <div className="hidden md:flex items-center gap-4 text-sm text-gray-400 font-medium">
+              <Link href="/dashboard" className="hover:text-neon-purple transition">Dashboard</Link>
+              <Link href="/ai-chat" className="hover:text-neon-purple transition">AI Coach</Link>
+              <Link href="/analytics" className="hover:text-neon-purple transition">Analytics</Link>
+              <Link href="/focus" className="hover:text-neon-purple transition">Focus Mode</Link>
+            </div>
+          </div>
           <div className="flex items-center gap-4">
             <motion.div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20" whileHover={{ scale: 1.05 }}>
               <span className="text-lg fire-glow">🔥</span>

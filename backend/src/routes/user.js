@@ -99,4 +99,60 @@ router.get('/stats', authMiddleware, async (req, res) => {
   }
 });
 
+// Invite a friend
+router.post('/friends/invite', authMiddleware, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Friend email required' });
+
+    const friend = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!friend) return res.status(404).json({ message: 'User not found' });
+
+    if (friend._id.equals(req.user._id)) {
+      return res.status(400).json({ message: 'You cannot invite yourself' });
+    }
+
+    // Add to mutual friends
+    const user = await User.findById(req.user._id);
+    if (user.friends.includes(friend._id)) {
+      return res.status(400).json({ message: 'Already friends' });
+    }
+
+    user.friends.push(friend._id);
+    await user.save();
+
+    if (!friend.friends.includes(req.user._id)) {
+      friend.friends.push(req.user._id);
+      await friend.save();
+    }
+
+    res.json({ message: 'Friend added successfully!', friend });
+  } catch (error) {
+    console.error('Friend invite error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get friends list
+router.get('/friends', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).populate('friends', 'name picture score level streak xp');
+    res.json(user.friends || []);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Friend ranking leaderboard
+router.get('/friends/leaderboard', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).populate('friends', 'name picture score level streak xp');
+    const leaderboard = [...(user.friends || []), user];
+    leaderboard.sort((a, b) => (b.xp || 0) - (a.xp || 0));
+    res.json(leaderboard);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;

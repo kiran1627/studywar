@@ -13,6 +13,9 @@ import TasksPanel from '@/components/TasksPanel';
 import Leaderboard from '@/components/Leaderboard';
 import ProblemSection from '@/components/ProblemSection';
 import api from '@/lib/api';
+import AIPlanCard from '@/components/AIPlanCard';
+import ChallengeWidget from '@/components/ChallengeWidget';
+import SmartReminders from '@/components/SmartReminders';
 
 interface UserStats {
   totalDays: number; totalCompleted: number; monthProgress: number; totalProblems: number;
@@ -52,23 +55,68 @@ export default function DashboardPage() {
       </div>
       <Navbar />
       <main className="relative z-10 pt-20 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">
-            Welcome back, <span className="neon-text">{user.name.split(' ')[0]}</span> 👋
-          </h1>
-          <p className="text-gray-500 mt-1">Ready to level up today?</p>
+        <div className="mb-4">
+          <SmartReminders />
+        </div>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">
+              Welcome back, <span className="neon-text">{user.name.split(' ')[0]}</span> 👋
+            </h1>
+            <div className="flex items-center gap-2 mt-2">
+              <span className={`text-xs font-bold px-3 py-1 rounded-full border shadow-sm ${
+                (user.xp || 0) >= 700 ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' :
+                (user.xp || 0) >= 300 ? 'bg-red-500/20 text-red-400 border-red-500/40' :
+                (user.xp || 0) >= 100 ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40' :
+                'bg-gray-500/20 text-gray-400 border-gray-500/40'
+              }`}>
+                {(user.xp || 0) >= 700 ? '🏆 Master' :
+                 (user.xp || 0) >= 300 ? '⚔️ Pro' :
+                 (user.xp || 0) >= 100 ? '🎖️ Intermediate' :
+                 '🔰 Beginner'}
+              </span>
+              <span className="text-xs text-gray-400">Level {user.level || 0}</span>
+            </div>
+          </div>
+
+          {/* XP Progress Bar */}
+          <div className="w-full sm:w-72 bg-dark-800/60 border border-white/10 rounded-xl p-3">
+            <div className="flex justify-between text-xs mb-1 font-medium">
+              <span className="text-purple-300">Progression</span>
+              <span className="text-gray-300">{user.xp || 0} XP</span>
+            </div>
+            <div className="w-full h-2 bg-dark-700 rounded-full overflow-hidden">
+              <motion.div 
+                className="h-full bg-gradient-to-r from-neon-purple to-neon-blue"
+                initial={{ width: 0 }}
+                animate={{ 
+                  width: `${
+                    (user.xp || 0) >= 700 ? 100 :
+                    (user.xp || 0) >= 300 ? ((user.xp - 300) / 400) * 100 :
+                    (user.xp || 0) >= 100 ? ((user.xp - 100) / 200) * 100 :
+                    (user.xp / 100) * 100
+                  }%`
+                }}
+                transition={{ duration: 1 }}
+              />
+            </div>
+          </div>
         </motion.div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <ScoreCard score={user.score} />
           <StreakCard streak={user.streak} />
           <ProgressCard progress={stats.monthProgress} totalProblems={stats.totalProblems} />
         </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 space-y-4">
+            <AIPlanCard streak={user.streak || 0} />
             <FocusTimer onSessionComplete={handleSessionComplete} />
             <TasksPanel key={refreshKey} />
           </div>
           <div className="space-y-4">
+            <ChallengeWidget />
             <Leaderboard />
             <ProblemSection />
           </div>

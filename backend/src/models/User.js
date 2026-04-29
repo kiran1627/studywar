@@ -8,6 +8,9 @@ const userSchema = new mongoose.Schema(
     score: { type: Number, default: 0, min: 0 },
     streak: { type: Number, default: 0, min: 0 },
     lastActiveDate: { type: String, default: null },
+    xp: { type: Number, default: 0, min: 0 },
+    level: { type: Number, default: 0, min: 0 },
+    friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   },
   { timestamps: true }
 );

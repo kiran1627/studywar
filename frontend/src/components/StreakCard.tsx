@@ -34,6 +34,42 @@ const StreakCard: React.FC<StreakCardProps> = ({ streak }) => {
             <span key={m} className={`text-[10px] ${streak >= m ? 'text-orange-400' : 'text-gray-600'}`}>{m}d</span>
           ))}
         </div>
+        {/* Streak Badges */}
+        <div className="mt-4 pt-4 border-t border-white/5 flex items-center gap-2 justify-around">
+          {streak >= 3 && (
+            <motion.div 
+              initial={{ scale: 0, rotate: -180 }} 
+              animate={{ scale: 1, rotate: 0 }} 
+              transition={{ type: 'spring', stiffness: 200 }}
+              className="flex flex-col items-center gap-1"
+            >
+              <span className="text-2xl shadow-sm">🥉</span>
+              <span className="text-[9px] text-amber-600 font-bold uppercase">Bronze</span>
+            </motion.div>
+          )}
+          {streak >= 7 && (
+            <motion.div 
+              initial={{ scale: 0, rotate: -180 }} 
+              animate={{ scale: 1, rotate: 0 }} 
+              transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
+              className="flex flex-col items-center gap-1"
+            >
+              <span className="text-2xl shadow-sm">🥈</span>
+              <span className="text-[9px] text-gray-400 font-bold uppercase">Silver</span>
+            </motion.div>
+          )}
+          {streak >= 30 && (
+            <motion.div 
+              initial={{ scale: 0, rotate: -180 }} 
+              animate={{ scale: 1, rotate: 0 }} 
+              transition={{ type: 'spring', stiffness: 200, delay: 0.4 }}
+              className="flex flex-col items-center gap-1"
+            >
+              <span className="text-2xl shadow-sm">🥇</span>
+              <span className="text-[9px] text-amber-400 font-bold uppercase">Gold</span>
+            </motion.div>
+          )}
+        </div>
       </div>
     </GlassCard>
   );
