@@ -3,9 +3,9 @@ const User = require('../models/User');
 
 const authMiddleware = async (req, res, next) => {
   try {
-    const token = req.cookies?.token;
+    const token = req.cookies?.token || req.headers.authorization?.split(' ')[1];
     if (!token) {
-      console.log('🔒 Auth failed: No token found in cookies');
+      console.log('🔒 Auth failed: No token found in cookies or headers');
       return res.status(401).json({ message: 'Authentication required' });
     }
 

@@ -30,7 +30,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchUser(); }, [fetchUser]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token');
+      if (token) {
+        localStorage.setItem('studywar_token', token);
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+      }
+    }
+    fetchUser();
+  }, [fetchUser]);
 
   const login = () => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -39,6 +50,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try { await api.post('/auth/logout'); } catch {}
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('studywar_token');
+    }
     disconnectSocket(); setUser(null); window.location.href = '/';
   };
 

@@ -46,7 +46,7 @@ router.get('/google/callback',
   (req, res) => {
     const token = generateToken(req.user._id);
     res.cookie('token', token, cookieOptions);
-    res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
+    res.redirect(`${process.env.FRONTEND_URL}/dashboard?token=${token}`);
   }
 );
 
