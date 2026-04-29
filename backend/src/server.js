@@ -18,19 +18,31 @@ const leaderboardRoutes = require('./routes/leaderboard');
 const app = express();
 const server = http.createServer(app);
 
-const io = new Server(server, {
-  cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true,
+const allowedOrigins = ['http://localhost:3000'];
+if (process.env.FRONTEND_URL) allowedOrigins.push(process.env.FRONTEND_URL);
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    const isAllowed = allowedOrigins.some(allowed => allowed === origin || allowed === origin + '/');
+    const isVercel = origin.endsWith('.vercel.app');
+    if (isAllowed || isVercel) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
   },
-});
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+};
+
+const io = new Server(server, { cors: corsOptions });
 
 app.set('io', io);
 initSocket(io);
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:3000', credentials: true }));
+app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
