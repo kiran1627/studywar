@@ -1,6 +1,39 @@
 const express = require('express');
 const authMiddleware = require('../middleware/auth');
 const router = express.Router();
+const https = require('https');
+
+const openrouterRequest = (body) => {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: 'openrouter.ai',
+      path: '/api/v1/chat/completions',
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': process.env.FRONTEND_URL || 'http://localhost:3000',
+        'X-Title': 'StudyWar AI Coach',
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let resData = '';
+      res.on('data', (chunk) => { resData += chunk; });
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(resData));
+        } catch (e) {
+          reject(new Error('Failed to parse OpenRouter response'));
+        }
+      });
+    });
+
+    req.on('error', (e) => { reject(e); });
+    req.write(JSON.stringify(body));
+    req.end();
+  });
+};
 
 router.post('/chat', authMiddleware, async (req, res) => {
   try {
@@ -28,21 +61,11 @@ router.post('/chat', authMiddleware, async (req, res) => {
       });
     }
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'HTTP-Referer': process.env.FRONTEND_URL || 'http://localhost:3000',
-        'X-Title': 'StudyWar AI Coach',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [systemPrompt, ...formattedMessages]
-      })
+    const data = await openrouterRequest({
+      model: 'google/gemini-2.5-flash',
+      messages: [systemPrompt, ...formattedMessages]
     });
 
-    const data = await response.json();
     if (data.error) {
       throw new Error(data.error.message || 'OpenRouter error');
     }
@@ -84,19 +107,10 @@ Return ONLY a raw JSON array of strings. Example format:
       ]);
     }
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [{ role: 'user', content: prompt }]
-      })
+    const data = await openrouterRequest({
+      model: 'google/gemini-2.5-flash',
+      messages: [{ role: 'user', content: prompt }]
     });
-
-    const data = await response.json();
     let plan = [];
     try {
       const rawContent = data.choices?.[0]?.message?.content || '[]';
