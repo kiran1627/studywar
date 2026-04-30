@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import GlassCard from './GlassCard';
+import { getCoachAdvice } from '@/utils/coach';
 
 interface ProgressCardProps { progress: number; totalProblems: number; }
 
@@ -13,30 +14,15 @@ const ProgressCard: React.FC<ProgressCardProps> = ({ progress, totalProblems }) 
   const circumference = 2 * Math.PI * 45;
   const offset = circumference - (progress / 100) * circumference;
 
-  const handleCoachClick = async () => {
-    setLoading(true);
-    setFeedback(null);
-    try {
-      const API = process.env.NEXT_PUBLIC_API_URL || 'https://studywar-3.onrender.com';
-      const res = await fetch(`${API}/api/ai/coach`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          progress: `Solved ${totalProblems} problems, monthly progress is ${progress}%`
-        })
-      });
-      
-      if (!res.ok) throw new Error('AI unavailable');
-      const data = await res.json();
-      setFeedback(data.reply);
-      console.log('AI Coach Response:', data.reply);
-    } catch (err) {
-      console.error(err);
-      setFeedback("AI unavailable, try again");
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    // Generate coach advice on load
+    const userStats = {
+      problems: totalProblems,
+      streak: 1, // Mocked for now, can be passed down or retrieved
+      xp: 150 
+    };
+    setFeedback(getCoachAdvice(userStats));
+  }, [totalProblems, progress]);
 
   return (
     <GlassCard glowColor="green" className="relative overflow-hidden">
@@ -71,20 +57,14 @@ const ProgressCard: React.FC<ProgressCardProps> = ({ progress, totalProblems }) 
           </div>
         </div>
         <div className="mt-4 border-t border-white/10 pt-4">
-          <button 
-            onClick={handleCoachClick} 
-            disabled={loading}
-            className="w-full bg-neon-purple/20 hover:bg-neon-purple/40 text-neon-purple border border-neon-purple/30 rounded-lg py-2 text-sm font-semibold transition"
-          >
-            {loading ? 'Thinking...' : 'Get AI Coach Feedback'}
-          </button>
+          <h4 className="text-xs text-gray-500 mb-2 uppercase tracking-wider font-semibold">Coach Advice</h4>
           {feedback && (
             <motion.div 
-              initial={{ opacity: 0, height: 0 }} 
-              animate={{ opacity: 1, height: 'auto' }} 
-              className="mt-3 text-xs text-gray-300 bg-black/20 p-3 rounded-lg whitespace-pre-wrap border border-white/5"
+              initial={{ opacity: 0, y: 5 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              className="text-sm text-gray-300 bg-black/20 p-3 rounded-lg border border-neon-purple/20 shadow-[0_0_15px_rgba(124,58,237,0.1)]"
             >
-              {feedback}
+              💡 {feedback}
             </motion.div>
           )}
         </div>

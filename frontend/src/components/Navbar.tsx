@@ -26,7 +26,6 @@ const Navbar: React.FC = () => {
             {/* Desktop Nav Links */}
             <div className="hidden md:flex items-center gap-4 text-sm text-gray-400 font-medium">
               <Link href="/dashboard" className="hover:text-neon-purple transition">Dashboard</Link>
-              <Link href="/ai-chat" className="hover:text-neon-purple transition">AI Coach</Link>
               <Link href="/analytics" className="hover:text-neon-purple transition">Analytics</Link>
               <Link href="/focus" className="hover:text-neon-purple transition">Focus Mode</Link>
             </div>

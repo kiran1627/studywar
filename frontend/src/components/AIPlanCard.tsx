@@ -2,38 +2,31 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import api from '@/lib/api';
+import { generatePlan } from '@/utils/coach';
+import { useAuth } from '@/context/AuthContext';
 
 export default function AIPlanCard({ streak }: { streak: number }) {
   const [plan, setPlan] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const { user } = useAuth();
+
   const fetchPlan = async () => {
     setLoading(true);
     try {
-      const API = process.env.NEXT_PUBLIC_API_URL || 'https://studywar-3.onrender.com';
-      const res = await fetch(`${API}/api/ai/plan`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          streak,
-          completed: 1, // Simulated aggregates
-          missed: 0
-        })
-      });
+      // Use local rule-based generation
+      const mockUserStats = {
+        problems: 1, // You can make this dynamic if connected to stats
+        morningDone: false,
+        eveningDone: false,
+        streak: streak || user?.streak || 0
+      };
       
-      if (!res.ok) throw new Error('AI unavailable');
-      const data = await res.json();
-      
-      if (data.reply) {
-        const tasks = data.reply.split('\n').filter((t: string) => t.trim().length > 0);
-        setPlan(tasks);
-      } else {
-        setPlan(["AI did not return a plan."]);
-      }
+      const newPlan = generatePlan(mockUserStats);
+      setPlan(newPlan);
     } catch (err) {
-      console.error('Failed to fetch daily plan:', err);
-      setPlan(["AI unavailable, try again"]);
+      console.error('Failed to generate daily plan:', err);
+      setPlan(["System error, try again"]);
     } finally {
       setLoading(false);
     }
@@ -47,14 +40,14 @@ export default function AIPlanCard({ streak }: { streak: number }) {
     <div className="bg-dark-800/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-lg">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-bold text-white flex items-center gap-2">
-          🧠 Today&apos;s AI Plan
+          🧠 Today&apos;s Smart Plan
         </h3>
         <button 
           onClick={fetchPlan} 
           disabled={loading} 
           className="text-xs text-neon-purple hover:underline disabled:text-gray-500"
         >
-          {loading ? 'Thinking...' : 'Regenerate 🔄'}
+          {loading ? 'Generating...' : 'Refresh 🔄'}
         </button>
       </div>
 

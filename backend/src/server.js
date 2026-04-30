@@ -14,7 +14,6 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
 const taskRoutes = require('./routes/tasks');
 const leaderboardRoutes = require('./routes/leaderboard');
-const aiRoutes = require('./routes/ai');
 const challengeRoutes = require('./routes/challenge');
 
 const app = express();
@@ -55,7 +54,6 @@ app.use('/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
-app.use('/api/ai', aiRoutes);
 app.use('/api/challenge', challengeRoutes);
 
 app.get('/health', (req, res) => {

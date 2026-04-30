@@ -17,9 +17,10 @@ import api from '@/lib/api';
 import AIPlanCard from '@/components/AIPlanCard';
 import ChallengeWidget from '@/components/ChallengeWidget';
 import SmartReminders from '@/components/SmartReminders';
+import { calculateXP, getLevel } from '@/utils/coach';
 
 interface UserStats {
-  totalDays: number; totalCompleted: number; monthProgress: number; totalProblems: number;
+  totalDays: number; totalCompleted: number; monthProgress: number; totalProblems: number; xp?: number; level?: string;
 }
 
 export default function DashboardPage() {
@@ -31,11 +32,35 @@ export default function DashboardPage() {
   useEffect(() => { if (!loading && !user) router.push('/'); }, [user, loading, router]);
 
   const fetchStats = useCallback(async () => {
-    try { const res = await api.get('/api/user/stats'); setStats(res.data); }
-    catch (err) { console.error('Failed to fetch stats:', err); }
-  }, []);
+    try { 
+      const res = await api.get('/api/user/stats'); 
+      const data = res.data;
+      
+      // Calculate XP and level locally
+      data.xp = calculateXP(user, data);
+      data.level = getLevel(data.xp);
+      
+      setStats(data); 
+      // Cache data for offline use
+      localStorage.setItem('studywar_offline_stats', JSON.stringify(data));
+      localStorage.setItem('studywar_offline_user', JSON.stringify(user));
+    }
+    catch (err) { 
+      console.error('Failed to fetch stats, loading from cache:', err); 
+      const cachedStats = localStorage.getItem('studywar_offline_stats');
+      if (cachedStats) {
+        setStats(JSON.parse(cachedStats));
+      }
+    }
+  }, [user]);
 
-  useEffect(() => { if (user) fetchStats(); }, [user, fetchStats, refreshKey]);
+  useEffect(() => { 
+    if (user) {
+      const cachedStats = localStorage.getItem('studywar_offline_stats');
+      if (cachedStats) setStats(JSON.parse(cachedStats));
+      fetchStats(); 
+    }
+  }, [user, fetchStats, refreshKey]);
 
   const handleSessionComplete = () => { setRefreshKey((k) => k + 1); refreshUser(); fetchStats(); };
 
@@ -65,6 +90,18 @@ export default function DashboardPage() {
               Welcome back, <span className="neon-text">{user?.name?.split(' ')[0] || 'Warrior'}</span> 👋
             </h1>
           </div>
+          {stats.xp !== undefined && (
+            <div className="flex items-center gap-3">
+              <div className="px-3 py-1.5 rounded-full bg-neon-purple/10 border border-neon-purple/20 flex items-center gap-2">
+                <span className="text-sm font-semibold text-neon-purple">XP</span>
+                <span className="text-white font-bold">{stats.xp}</span>
+              </div>
+              <div className="px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center gap-2">
+                <span className="text-sm font-semibold text-blue-400">Level</span>
+                <span className="text-white font-bold">{stats.level}</span>
+              </div>
+            </div>
+          )}
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
