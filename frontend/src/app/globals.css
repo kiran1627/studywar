@@ -94,4 +94,127 @@
     20% { opacity: 0.3; } 80% { opacity: 0.3; }
     100% { transform: translateY(-100vh) scale(1); opacity: 0; }
   }
+
+  /* ========== LANDING PAGE ANIMATIONS ========== */
+
+  /* Orbiting rings around hero logo */
+  .orbit-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(124, 58, 237, 0.15);
+    animation: orbit-spin 20s linear infinite;
+  }
+  .orbit-ring-reverse {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px dashed rgba(0, 212, 255, 0.12);
+    animation: orbit-spin 30s linear infinite reverse;
+  }
+  @keyframes orbit-spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+  }
+
+  /* Orbit dots */
+  .orbit-dot {
+    position: absolute;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--neon-purple);
+    box-shadow: 0 0 12px var(--neon-purple), 0 0 24px rgba(124, 58, 237, 0.4);
+  }
+  .orbit-dot-blue {
+    position: absolute;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--neon-blue);
+    box-shadow: 0 0 12px var(--neon-blue), 0 0 24px rgba(0, 212, 255, 0.4);
+  }
+
+  /* Gradient shift for hero bg */
+  .gradient-shift {
+    background: linear-gradient(135deg, rgba(124,58,237,0.08), rgba(0,212,255,0.06), rgba(236,72,153,0.05));
+    background-size: 400% 400%;
+    animation: gradient-move 12s ease infinite;
+  }
+  @keyframes gradient-move {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Shimmer / light sweep on cards */
+  .shimmer-card {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 50%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
+    animation: shimmer-sweep 4s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 1;
+  }
+  @keyframes shimmer-sweep {
+    0% { left: -100%; }
+    100% { left: 200%; }
+  }
+
+  /* Typewriter cursor */
+  .typewriter-cursor::after {
+    content: '|';
+    animation: cursor-blink 1s step-end infinite;
+    color: var(--neon-blue);
+    font-weight: 300;
+  }
+  @keyframes cursor-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* Stat counter glow */
+  .stat-number {
+    background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.4));
+  }
+
+  /* Scroll indicator bounce */
+  .scroll-indicator {
+    animation: scroll-bounce 2s ease-in-out infinite;
+  }
+  @keyframes scroll-bounce {
+    0%, 100% { transform: translateY(0); opacity: 0.6; }
+    50% { transform: translateY(8px); opacity: 1; }
+  }
+
+  /* Feature card float */
+  .feature-float {
+    animation: feature-float 6s ease-in-out infinite;
+  }
+  .feature-float-delay {
+    animation: feature-float 6s ease-in-out infinite 2s;
+  }
+  .feature-float-delay2 {
+    animation: feature-float 6s ease-in-out infinite 4s;
+  }
+  @keyframes feature-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  /* Level bar fill animation */
+  .level-bar-fill {
+    animation: level-fill 2s ease-out forwards;
+    transform-origin: left;
+  }
+  @keyframes level-fill {
+    0% { transform: scaleX(0); }
+    100% { transform: scaleX(1); }
+  }
 }
