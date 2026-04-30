@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { disconnectSocket } from '@/lib/socket';
 
@@ -20,6 +21,7 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   const fetchUser = useCallback(async () => {
     try { const res = await api.get('/auth/me'); setUser(res.data); }
@@ -49,8 +51,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try { await api.post('/auth/logout'); } catch {}
     if (typeof window !== 'undefined') {
       localStorage.removeItem('studywar_token');
+      sessionStorage.removeItem('sw_intro_seen');
     }
-    disconnectSocket(); setUser(null); window.location.href = '/';
+    disconnectSocket(); setUser(null); router.push('/');
   };
 
   const refreshUser = async () => {
