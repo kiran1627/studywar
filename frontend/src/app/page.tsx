@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { motion, useScroll, useTransform, useInView } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import LoginButton from '@/components/LoginButton';
+import CinematicIntro from '@/components/CinematicIntro';
 import { useRouter } from 'next/navigation';
 
 /* ──────── Typewriter Hook ──────── */
@@ -95,6 +96,7 @@ export default function HomePage() {
   }
 
   return (
+    <CinematicIntro>
     <main className="min-h-screen bg-dark-900 text-white overflow-x-hidden">
 
       {/* ═══════════════════════ SECTION 1 : HERO ═══════════════════════ */}
@@ -381,5 +383,6 @@ export default function HomePage() {
         </div>
       </footer>
     </main>
+    </CinematicIntro>
   );
 }
