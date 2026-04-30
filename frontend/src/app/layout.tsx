@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
+import CapacitorSetup from '@/components/CapacitorSetup';
+import MobileNav from '@/components/MobileNav';
 
 export const metadata: Metadata = {
   title: 'StudyWar 🚀 | Gamified Coding Habit Tracker',
@@ -14,6 +16,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -27,7 +30,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="icon" href="/icons/favincon.png" />
       </head>
       <body className="bg-dark-900 text-white antialiased">
-        <AuthProvider>{children}</AuthProvider>
+        <CapacitorSetup />
+        <AuthProvider>
+          <div className="pb-16 md:pb-0">
+            {children}
+          </div>
+          <MobileNav />
+        </AuthProvider>
       </body>
     </html>
   );

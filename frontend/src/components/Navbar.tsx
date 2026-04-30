@@ -19,7 +19,7 @@ const Navbar: React.FC = () => {
             <Link href="/dashboard">
               <motion.div className="flex items-center gap-2 cursor-pointer" whileHover={{ scale: 1.02 }}>
                 <img src="/icons/app logo.png" alt="SW" className="w-8 h-8 drop-shadow-[0_0_10px_rgba(124,58,237,0.5)]" />
-                <span className="text-xl font-extrabold neon-text">StudyWar</span>
+                <span className="text-lg sm:text-xl font-extrabold neon-text hidden sm:block">StudyWar</span>
               </motion.div>
             </Link>
 
@@ -49,8 +49,9 @@ const Navbar: React.FC = () => {
               )}
             </div>
             <motion.button id="logout-btn" onClick={logout} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-              className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/20 transition-colors cursor-pointer">
-              Logout
+              className="px-2 sm:px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/20 transition-colors cursor-pointer flex items-center justify-center">
+              <span className="hidden sm:inline">Logout</span>
+              <span className="sm:hidden text-lg">🚪</span>
             </motion.button>
           </div>
         </div>
