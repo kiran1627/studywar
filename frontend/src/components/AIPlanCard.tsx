@@ -11,14 +11,29 @@ export default function AIPlanCard({ streak }: { streak: number }) {
   const fetchPlan = async () => {
     setLoading(true);
     try {
-      const res = await api.post('/api/ai/plan', {
-        streak,
-        completedTasks: 1, // Simulated aggregates
-        missedSessions: 0
+      const API = process.env.NEXT_PUBLIC_API_URL || 'https://studywar-3.onrender.com';
+      const res = await fetch(`${API}/api/ai/plan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          streak,
+          completed: 1, // Simulated aggregates
+          missed: 0
+        })
       });
-      setPlan(res.data);
+      
+      if (!res.ok) throw new Error('AI unavailable');
+      const data = await res.json();
+      
+      if (data.reply) {
+        const tasks = data.reply.split('\n').filter((t: string) => t.trim().length > 0);
+        setPlan(tasks);
+      } else {
+        setPlan(["AI did not return a plan."]);
+      }
     } catch (err) {
       console.error('Failed to fetch daily plan:', err);
+      setPlan(["AI unavailable, try again"]);
     } finally {
       setLoading(false);
     }

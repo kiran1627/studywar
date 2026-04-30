@@ -22,6 +22,7 @@ const server = http.createServer(app);
 
 const allowedOrigins = ['http://localhost:3000'];
 if (process.env.FRONTEND_URL) allowedOrigins.push(process.env.FRONTEND_URL);
+if (process.env.CLIENT_URL) allowedOrigins.push(process.env.CLIENT_URL);
 
 const corsOptions = {
   origin: function (origin, callback) {

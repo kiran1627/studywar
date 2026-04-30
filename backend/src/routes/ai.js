@@ -1,135 +1,105 @@
-const express = require('express');
-const authMiddleware = require('../middleware/auth');
+const express = require("express");
 const router = express.Router();
-const https = require('https');
+const axios = require("axios");
 
-const openrouterRequest = (body) => {
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname: 'openrouter.ai',
-      path: '/api/v1/chat/completions',
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.FRONTEND_URL || 'http://localhost:3000',
-        'X-Title': 'StudyWar AI Coach',
-      }
-    };
+const OR_URL = "https://openrouter.ai/api/v1/chat/completions";
+const MODEL = "google/gemini-1.5-flash";
 
-    const req = https.request(options, (res) => {
-      let resData = '';
-      res.on('data', (chunk) => { resData += chunk; });
-      res.on('end', () => {
-        try {
-          resolve(JSON.parse(resData));
-        } catch (e) {
-          reject(new Error('Failed to parse OpenRouter response'));
-        }
-      });
-    });
+function headers() {
+  return {
+    Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+    "Content-Type": "application/json",
+    "HTTP-Referer": process.env.CLIENT_URL || "https://your-app.vercel.app",
+    "X-Title": "StudyWar"
+  };
+}
 
-    req.on('error', (e) => { reject(e); });
-    req.write(JSON.stringify(body));
-    req.end();
-  });
-};
-
-router.post('/chat', authMiddleware, async (req, res) => {
+// 1) AI COACH
+router.post("/coach", async (req, res) => {
   try {
-    const { messages } = req.body;
-    if (!messages || !Array.isArray(messages)) {
-      return res.status(400).json({ message: 'Messages array required' });
-    }
+    const { progress } = req.body;
 
-    const formattedMessages = messages.map(msg => ({
-      role: msg.role === 'assistant' ? 'assistant' : 'user',
-      content: msg.content
-    }));
+    const resp = await axios.post(
+      OR_URL,
+      {
+        model: MODEL,
+        messages: [
+          {
+            role: "user",
+            content: `Act as a strict coding mentor.
 
-    const systemPrompt = {
-      role: 'system',
-      content: 'You are an encouraging, knowledgeable AI Study Coach for the StudyWar platform. Help users plan, study, and solve coding problems. Keep answers motivating and helpful.'
-    };
+User progress:
+${progress}
 
-    // Check if API Key exists
-    if (!process.env.OPENROUTER_API_KEY) {
-      // Mock response for local dev without key
-      const lastMsg = messages[messages.length - 1]?.content || '';
-      return res.json({ 
-        reply: `[Coach Mode (Demo)] I heard you say: "${lastMsg}". Setup OPENROUTER_API_KEY to activate real AI replies!` 
-      });
-    }
+Give:
 
-    const data = await openrouterRequest({
-      model: 'google/gemini-2.5-flash',
-      messages: [systemPrompt, ...formattedMessages]
-    });
+1. Honest feedback
+2. Mistakes
+3. Exact next steps
+4. Short motivation`
+          }
+        ]
+      },
+      { headers: headers(), timeout: 30000 }
+    );
 
-    if (data.error) {
-      throw new Error(data.error.message || 'OpenRouter error');
-    }
-
-    const reply = data.choices?.[0]?.message?.content || 'I am having trouble thinking right now.';
-    res.json({ reply });
-  } catch (error) {
-    console.error('AI Chat Error:', error);
-    const lastMsg = req.body.messages?.[req.body.messages.length - 1]?.content || '';
-    res.json({ 
-      reply: `[Coach Mode (Fallback)] Connection issue resolved. Prompt context: "${lastMsg}"`
-    });
+    const reply = resp.data?.choices?.[0]?.message?.content || "";
+    return res.json({ reply });
+  } catch (e) {
+    console.error("AI coach error:", e.response?.data || e.message);
+    return res.status(500).json({ error: "AI failed" });
   }
 });
 
-router.post('/plan', authMiddleware, async (req, res) => {
+// 2) AI CHAT (history supported)
+router.post("/chat", async (req, res) => {
   try {
-    const { streak, completedTasks, missedSessions } = req.body;
+    const { messages } = req.body; // [{role, content}...]
 
-    const prompt = `You are a highly intelligent study planner. Based on the following user data:
-- Current Streak: ${streak} days
-- Completed Sessions: ${completedTasks}
-- Missed Sessions: ${missedSessions}
+    const resp = await axios.post(
+      OR_URL,
+      { model: MODEL, messages },
+      { headers: headers(), timeout: 30000 }
+    );
 
-Generate exactly 3-5 actionable, highly motivating tasks for the user to complete TODAY. 
-Return ONLY a raw JSON array of strings. Example format:
-[
-  "Complete a 30-minute Focus Mode block",
-  "Solve 2 Easy LeetCode questions",
-  "Review sorting algorithms"
-]`;
+    const reply = resp.data?.choices?.[0]?.message?.content || "";
+    return res.json({ reply });
+  } catch (e) {
+    console.error("AI chat error:", e.response?.data || e.message);
+    return res.status(500).json({ error: "AI failed" });
+  }
+});
 
-    if (!process.env.OPENROUTER_API_KEY) {
-      // Mock Daily Plan
-      return res.json([
-        "Complete a morning focus block (6:00 AM - 8:00 AM)",
-        "Solve at least 3 coding challenges",
-        "Practice active recall for 15 minutes"
-      ]);
-    }
+// 3) DAILY PLAN
+router.post("/plan", async (req, res) => {
+  try {
+    const { streak, completed, missed } = req.body;
 
-    const data = await openrouterRequest({
-      model: 'google/gemini-2.5-flash',
-      messages: [{ role: 'user', content: prompt }]
-    });
-    let plan = [];
-    try {
-      const rawContent = data.choices?.[0]?.message?.content || '[]';
-      plan = JSON.parse(rawContent);
-      if (!Array.isArray(plan)) {
-        plan = ["Practice focus mode", "Solve coding puzzles", "Clean workspace"];
-      }
-    } catch (e) {
-      plan = ["Review key concepts", "Complete daily focus", "Crush today's tasks"];
-    }
+    const resp = await axios.post(
+      OR_URL,
+      {
+        model: MODEL,
+        messages: [
+          {
+            role: "user",
+            content: `Create a focused daily plan (3–5 tasks).
 
-    res.json(plan);
-  } catch (error) {
-    console.error('AI Plan Error:', error);
-    res.json([
-      "Review key concepts",
-      "Complete daily focus",
-      "Crush today's tasks"
-    ]);
+Streak: ${streak}
+Completed: ${completed}
+Missed: ${missed}
+
+Return a concise numbered list.`
+          }
+        ]
+      },
+      { headers: headers(), timeout: 30000 }
+    );
+
+    const reply = resp.data?.choices?.[0]?.message?.content || "";
+    return res.json({ reply });
+  } catch (e) {
+    console.error("AI plan error:", e.response?.data || e.message);
+    return res.status(500).json({ error: "AI failed" });
   }
 });
 

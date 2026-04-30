@@ -40,17 +40,25 @@ export default function AIChatPage() {
     setLoading(true);
 
     try {
-      const res = await api.post('/api/ai/chat', {
-        messages: [...messages, userMsg]
+      const API = process.env.NEXT_PUBLIC_API_URL || 'https://studywar-3.onrender.com';
+      const res = await fetch(`${API}/api/ai/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [...messages, userMsg]
+        })
       });
       
-      const aiMsg: Message = { role: 'assistant', content: res.data.reply };
+      if (!res.ok) throw new Error('AI unavailable');
+      const data = await res.json();
+      
+      const aiMsg: Message = { role: 'assistant', content: data.reply };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (error) {
       console.error(error);
       setMessages((prev) => [
         ...prev, 
-        { role: 'assistant', content: 'Sorry, I encountered an error. Please check backend integrations.' }
+        { role: 'assistant', content: 'AI unavailable, try again' }
       ]);
     } finally {
       setLoading(false);

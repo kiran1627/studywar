@@ -1,14 +1,42 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import GlassCard from './GlassCard';
 
 interface ProgressCardProps { progress: number; totalProblems: number; }
 
 const ProgressCard: React.FC<ProgressCardProps> = ({ progress, totalProblems }) => {
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
   const circumference = 2 * Math.PI * 45;
   const offset = circumference - (progress / 100) * circumference;
+
+  const handleCoachClick = async () => {
+    setLoading(true);
+    setFeedback(null);
+    try {
+      const API = process.env.NEXT_PUBLIC_API_URL || 'https://studywar-3.onrender.com';
+      const res = await fetch(`${API}/api/ai/coach`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          progress: `Solved ${totalProblems} problems, monthly progress is ${progress}%`
+        })
+      });
+      
+      if (!res.ok) throw new Error('AI unavailable');
+      const data = await res.json();
+      setFeedback(data.reply);
+      console.log('AI Coach Response:', data.reply);
+    } catch (err) {
+      console.error(err);
+      setFeedback("AI unavailable, try again");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <GlassCard glowColor="green" className="relative overflow-hidden">
@@ -41,6 +69,24 @@ const ProgressCard: React.FC<ProgressCardProps> = ({ progress, totalProblems }) 
               </p>
             </div>
           </div>
+        </div>
+        <div className="mt-4 border-t border-white/10 pt-4">
+          <button 
+            onClick={handleCoachClick} 
+            disabled={loading}
+            className="w-full bg-neon-purple/20 hover:bg-neon-purple/40 text-neon-purple border border-neon-purple/30 rounded-lg py-2 text-sm font-semibold transition"
+          >
+            {loading ? 'Thinking...' : 'Get AI Coach Feedback'}
+          </button>
+          {feedback && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }} 
+              animate={{ opacity: 1, height: 'auto' }} 
+              className="mt-3 text-xs text-gray-300 bg-black/20 p-3 rounded-lg whitespace-pre-wrap border border-white/5"
+            >
+              {feedback}
+            </motion.div>
+          )}
         </div>
       </div>
     </GlassCard>
