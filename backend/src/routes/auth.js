@@ -67,6 +67,7 @@ router.get('/me', authMiddleware, (req, res) => {
     _id: req.user._id, name: req.user.name, email: req.user.email,
     picture: req.user.picture, score: req.user.score, streak: req.user.streak,
     lastActiveDate: req.user.lastActiveDate, xp: req.user.xp, level: req.user.level,
+    role: req.user.role || 'user',
   });
 });
 

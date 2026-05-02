@@ -29,6 +29,9 @@ const Navbar: React.FC = () => {
               <Link href="/institute" className="hover:text-neon-purple transition">Institute</Link>
               <Link href="/analytics" className="hover:text-neon-purple transition">Analytics</Link>
               <Link href="/focus" className="hover:text-neon-purple transition">Focus Mode</Link>
+              {user.role === 'admin' && (
+                <Link href="/admin" className="hover:text-neon-purple transition text-neon-purple font-bold">Admin</Link>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-4">

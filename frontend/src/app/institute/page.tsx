@@ -8,28 +8,36 @@ import Navbar from '@/components/Navbar';
 import ModuleCard from '@/components/institute/ModuleCard';
 import XPToast from '@/components/institute/XPToast';
 import { MODULES, TOTAL_DAYS, TOTAL_XP } from '@/lib/instituteData';
+import type { InstituteProgress, DayBlockProgress } from '@/types/user';
+import api from '@/lib/api';
 
 /* ─── Types ─── */
-type ProgressMap = Record<string, number[]>;
-
 const STORAGE_KEY = 'studywar_institute_progress';
 
 /* ─── Helpers ─── */
-function loadProgress(): ProgressMap {
-  if (typeof window === 'undefined') return {};
+function loadCachedProgress(): InstituteProgress | null {
+  if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
+    return raw ? JSON.parse(raw) : null;
   } catch {
-    return {};
+    return null;
   }
 }
 
-function saveProgress(progress: ProgressMap) {
+function cacheProgress(progress: InstituteProgress) {
   if (typeof window !== 'undefined') {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
   }
 }
+
+const DEFAULT_PROGRESS: InstituteProgress = {
+  currentDay: 1,
+  xp: 0,
+  unlockedModules: ['data-foundations'],
+  completedDays: {},
+  dayProgress: {},
+};
 
 /* ═══════════════════════════════════════════════════════════════
    Institute Page — AI Bootcamp
@@ -38,53 +46,111 @@ export default function InstitutePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
-  const [progress, setProgress] = useState<ProgressMap>({});
+  const [progress, setProgress] = useState<InstituteProgress>(DEFAULT_PROGRESS);
   const [toastXP, setToastXP] = useState(0);
   const [showToast, setShowToast] = useState(false);
-
-  // Load progress from localStorage on mount
-  useEffect(() => {
-    setProgress(loadProgress());
-  }, []);
+  const [unlockToast, setUnlockToast] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Auth guard
   useEffect(() => {
     if (!loading && !user) router.push('/');
   }, [user, loading, router]);
 
+  // Load progress from API (with localStorage cache fallback)
+  useEffect(() => {
+    if (!user) return;
+
+    // Load cache immediately for fast render
+    const cached = loadCachedProgress();
+    if (cached) setProgress(cached);
+
+    // Then fetch from API
+    const fetchProgress = async () => {
+      try {
+        const res = await api.get('/api/progress/me');
+        setProgress(res.data);
+        cacheProgress(res.data);
+      } catch (err) {
+        console.error('Failed to fetch progress:', err);
+        // Keep using cache
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProgress();
+  }, [user]);
+
   /* ─── Computed stats ─── */
-  const totalCompleted = Object.values(progress).reduce((sum, days) => sum + days.length, 0);
+  const completedDays = progress.completedDays || {};
+  const totalCompleted = Object.values(completedDays).reduce((sum, days) => sum + (days?.length || 0), 0);
   const overallPercentage = TOTAL_DAYS > 0 ? (totalCompleted / TOTAL_DAYS) * 100 : 0;
-  const earnedXP = MODULES.reduce((sum, mod) => {
-    const completed = progress[mod.id] || [];
-    return sum + mod.days.filter((d) => completed.includes(d.day)).reduce((s, d) => s + d.xpReward, 0);
-  }, 0);
+  const earnedXP = progress.xp || 0;
 
   const completedModules = MODULES.filter((mod) => {
-    const completed = progress[mod.id] || [];
-    return completed.length === mod.days.length;
+    const days = completedDays[mod.id] || [];
+    return days.length === mod.days.length;
   }).length;
 
-  /* ─── Toggle day completion ─── */
+  /* ─── Toggle day completion via API ─── */
   const handleToggleDay = useCallback(
-    (moduleId: string, day: number, xp: number) => {
-      setProgress((prev) => {
-        const current = prev[moduleId] || [];
-        let next: ProgressMap;
+    async (moduleId: string, day: number, xp: number) => {
+      try {
+        const res = await api.post('/api/progress/update', {
+          moduleId,
+          day,
+          block: 'full',
+        });
 
-        if (current.includes(day)) {
-          // Un-complete
-          next = { ...prev, [moduleId]: current.filter((d) => d !== day) };
-        } else {
-          // Complete — show XP toast
-          next = { ...prev, [moduleId]: [...current, day] };
-          setToastXP(xp);
+        const { xpAwarded, newlyUnlocked, progress: newProgress } = res.data;
+
+        setProgress(newProgress);
+        cacheProgress(newProgress);
+
+        if (xpAwarded > 0) {
+          setToastXP(xpAwarded);
           setShowToast(true);
         }
 
-        saveProgress(next);
-        return next;
-      });
+        if (newlyUnlocked) {
+          setUnlockToast(newlyUnlocked);
+          setTimeout(() => setUnlockToast(null), 3000);
+        }
+      } catch (err) {
+        console.error('Failed to update progress:', err);
+      }
+    },
+    []
+  );
+
+  /* ─── Toggle individual block via API ─── */
+  const handleToggleBlock = useCallback(
+    async (moduleId: string, day: number, block: 'learning' | 'practice' | 'build', xp: number) => {
+      try {
+        const res = await api.post('/api/progress/update', {
+          moduleId,
+          day,
+          block,
+        });
+
+        const { xpAwarded, newlyUnlocked, progress: newProgress } = res.data;
+
+        setProgress(newProgress);
+        cacheProgress(newProgress);
+
+        if (xpAwarded > 0) {
+          setToastXP(xpAwarded);
+          setShowToast(true);
+        }
+
+        if (newlyUnlocked) {
+          setUnlockToast(newlyUnlocked);
+          setTimeout(() => setUnlockToast(null), 3000);
+        }
+      } catch (err) {
+        console.error('Failed to update block:', err);
+      }
     },
     []
   );
@@ -113,6 +179,21 @@ export default function InstitutePage() {
 
       <Navbar />
       <XPToast xp={toastXP} show={showToast} onDone={() => setShowToast(false)} />
+
+      {/* Module unlock toast */}
+      {unlockToast && (
+        <motion.div
+          initial={{ opacity: 0, y: 20, scale: 0.8 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -30 }}
+          className="fixed top-36 left-1/2 -translate-x-1/2 z-[100] pointer-events-none"
+        >
+          <div className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-dark-800/95 backdrop-blur-xl border border-neon-purple/30 shadow-[0_0_40px_rgba(124,58,237,0.2)]">
+            <span className="text-2xl">🔓</span>
+            <span className="text-sm font-bold text-neon-purple">New module unlocked!</span>
+          </div>
+        </motion.div>
+      )}
 
       <main className="relative z-10 pt-20 pb-24 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
         {/* ═══ Hero Section ═══ */}
@@ -170,9 +251,7 @@ export default function InstitutePage() {
                 animate={{ width: `${overallPercentage}%` }}
                 transition={{ duration: 1.2, ease: 'easeOut' }}
                 className="h-full rounded-full bg-gradient-to-r from-neon-purple via-neon-blue to-neon-green"
-                style={{
-                  boxShadow: '0 0 12px rgba(0,212,255,0.4)',
-                }}
+                style={{ boxShadow: '0 0 12px rgba(0,212,255,0.4)' }}
               />
             </div>
           </div>
@@ -180,20 +259,26 @@ export default function InstitutePage() {
 
         {/* ═══ Module List ═══ */}
         <div className="space-y-4">
-          {MODULES.map((mod, i) => (
-            <motion.div
-              key={mod.id}
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 + i * 0.06, duration: 0.5 }}
-            >
-              <ModuleCard
-                module={mod}
-                completedDays={progress[mod.id] || []}
-                onToggleDay={handleToggleDay}
-              />
-            </motion.div>
-          ))}
+          {MODULES.map((mod, i) => {
+            const isLocked = !(progress.unlockedModules || []).includes(mod.id);
+            return (
+              <motion.div
+                key={mod.id}
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 + i * 0.06, duration: 0.5 }}
+              >
+                <ModuleCard
+                  module={mod}
+                  completedDays={completedDays[mod.id] || []}
+                  dayProgress={progress.dayProgress || {}}
+                  isLocked={isLocked}
+                  onToggleDay={handleToggleDay}
+                  onToggleBlock={handleToggleBlock}
+                />
+              </motion.div>
+            );
+          })}
         </div>
 
         {/* ═══ Bottom Motivational ═══ */}

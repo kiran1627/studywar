@@ -1,3 +1,17 @@
+export interface DayBlockProgress {
+  learning: boolean;
+  practice: boolean;
+  build: boolean;
+}
+
+export interface InstituteProgress {
+  currentDay: number;
+  xp: number;
+  unlockedModules: string[];
+  completedDays: Record<string, number[]>;
+  dayProgress: Record<string, DayBlockProgress>;
+}
+
 export interface User {
   _id: string;
   name: string;
@@ -8,4 +22,5 @@ export interface User {
   lastActiveDate: string | null;
   xp: number;
   level: number;
+  role: 'user' | 'admin';
 }

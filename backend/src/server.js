@@ -15,6 +15,8 @@ const userRoutes = require('./routes/user');
 const taskRoutes = require('./routes/tasks');
 const leaderboardRoutes = require('./routes/leaderboard');
 const challengeRoutes = require('./routes/challenge');
+const progressRoutes = require('./routes/progress');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const server = http.createServer(app);
@@ -55,6 +57,8 @@ app.use('/api/user', userRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/challenge', challengeRoutes);
+app.use('/api/progress', progressRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

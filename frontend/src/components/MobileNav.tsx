@@ -20,6 +20,10 @@ export default function MobileNav() {
     { name: 'Focus', path: '/focus', icon: '⏱️' },
   ];
 
+  if (user.role === 'admin') {
+    navItems.push({ name: 'Admin', path: '/admin', icon: '🛡️' });
+  }
+
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-dark-900/90 backdrop-blur-xl border-t border-white/10 pb-safe">
       <div className="flex justify-around items-center h-16">

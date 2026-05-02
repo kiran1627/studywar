@@ -3,29 +3,42 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import type { DaySchedule } from '@/lib/instituteData';
+import type { DayBlockProgress } from '@/types/user';
 
 interface DayCardProps {
   day: DaySchedule;
+  moduleId: string;
   moduleNumber: number;
   isCompleted: boolean;
+  blockProgress: DayBlockProgress;
   accentFrom: string;
   accentTo: string;
   onToggle: () => void;
+  onToggleBlock: (block: 'learning' | 'practice' | 'build') => void;
 }
 
-const TIME_BLOCKS = [
-  { key: 'learning' as const, label: 'Learn', time: '9:30 – 11:30', icon: '🎓', bgClass: 'bg-blue-500/8' },
-  { key: 'practice' as const, label: 'Practice', time: '11:30 – 1:30', icon: '💪', bgClass: 'bg-purple-500/8' },
-  { key: 'build' as const, label: 'Build', time: '1:30 – 3:00', icon: '🔨', bgClass: 'bg-orange-500/8' },
+const TIME_BLOCKS: {
+  key: 'learning' | 'practice' | 'build';
+  label: string;
+  time: string;
+  icon: string;
+  bgClass: string;
+}[] = [
+  { key: 'learning', label: 'Learn', time: '9:30 – 11:30', icon: '🎓', bgClass: 'bg-blue-500/8' },
+  { key: 'practice', label: 'Practice', time: '11:30 – 1:30', icon: '💪', bgClass: 'bg-purple-500/8' },
+  { key: 'build', label: 'Build', time: '1:30 – 3:00', icon: '🔨', bgClass: 'bg-orange-500/8' },
 ];
 
 export default function DayCard({
   day,
+  moduleId,
   moduleNumber,
   isCompleted,
+  blockProgress,
   accentFrom,
   accentTo,
   onToggle,
+  onToggleBlock,
 }: DayCardProps) {
   return (
     <motion.div
@@ -62,7 +75,7 @@ export default function DayCard({
             <h4 className="text-sm sm:text-base font-semibold text-white">{day.title}</h4>
           </div>
 
-          {/* Completion toggle */}
+          {/* Full day completion toggle */}
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
@@ -72,12 +85,8 @@ export default function DayCard({
               background: isCompleted
                 ? 'linear-gradient(135deg, #00ff88, #059669)'
                 : 'rgba(255,255,255,0.05)',
-              border: isCompleted
-                ? 'none'
-                : '2px solid rgba(255,255,255,0.12)',
-              boxShadow: isCompleted
-                ? '0 0 20px rgba(0,255,136,0.3)'
-                : 'none',
+              border: isCompleted ? 'none' : '2px solid rgba(255,255,255,0.12)',
+              boxShadow: isCompleted ? '0 0 20px rgba(0,255,136,0.3)' : 'none',
             }}
             aria-label={isCompleted ? 'Mark as incomplete' : 'Mark as complete'}
           >
@@ -91,34 +100,62 @@ export default function DayCard({
           </motion.button>
         </div>
 
-        {/* Time blocks */}
+        {/* Time blocks with individual toggles */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {TIME_BLOCKS.map((block) => (
-            <div
-              key={block.key}
-              className={`rounded-lg p-3 ${block.bgClass} border border-white/[0.03] transition-all duration-200 hover:border-white/[0.08]`}
-            >
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <span className="text-sm">{block.icon}</span>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                  {block.label}
-                </span>
-              </div>
-              <p className="text-xs text-gray-300 leading-relaxed line-clamp-2">
-                {day[block.key]}
-              </p>
-              <p className="text-[10px] text-gray-500 mt-1.5">{block.time}</p>
-            </div>
-          ))}
+          {TIME_BLOCKS.map((block) => {
+            const isDone = blockProgress[block.key];
+            return (
+              <motion.button
+                key={block.key}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => onToggleBlock(block.key)}
+                className={`rounded-lg p-3 text-left transition-all duration-200 cursor-pointer ${
+                  isDone
+                    ? 'bg-neon-green/5 border border-neon-green/15'
+                    : `${block.bgClass} border border-white/[0.03] hover:border-white/[0.08]`
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm">{block.icon}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                      {block.label}
+                    </span>
+                  </div>
+                  {/* Block check */}
+                  <div
+                    className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${
+                      isDone
+                        ? 'bg-neon-green/20 border border-neon-green/40'
+                        : 'bg-white/5 border border-white/10'
+                    }`}
+                  >
+                    {isDone && (
+                      <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                        <path d="M1 4L3 6L7 2" stroke="#00ff88" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs text-gray-300 leading-relaxed line-clamp-2">
+                  {day[block.key]}
+                </p>
+                <p className="text-[10px] text-gray-500 mt-1.5">{block.time}</p>
+              </motion.button>
+            );
+          })}
         </div>
 
         {/* XP badge */}
         <div className="flex items-center justify-end mt-3">
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-            isCompleted
-              ? 'bg-neon-green/10 text-neon-green'
-              : 'bg-white/5 text-gray-500'
-          }`}>
+          <span
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+              isCompleted
+                ? 'bg-neon-green/10 text-neon-green'
+                : 'bg-white/5 text-gray-500'
+            }`}
+          >
             {isCompleted ? '✓ ' : ''}+{day.xpReward} XP
           </span>
         </div>

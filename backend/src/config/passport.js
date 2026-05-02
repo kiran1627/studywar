@@ -13,19 +13,27 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       },
       async (accessToken, refreshToken, profile, done) => {
         try {
-          let user = await User.findOne({ email: profile.emails[0].value });
+          const email = profile.emails[0].value;
+          const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+
+          let user = await User.findOne({ email });
           if (user) {
             user.picture = profile.photos[0]?.value || user.picture;
             user.name = profile.displayName;
+            // Update role if in admin list
+            if (adminEmails.includes(email.toLowerCase()) && user.role !== 'admin') {
+              user.role = 'admin';
+            }
             await user.save();
             return done(null, user);
           }
           user = await User.create({
             name: profile.displayName,
-            email: profile.emails[0].value,
+            email,
             picture: profile.photos[0]?.value || '',
             score: 0,
             streak: 0,
+            role: adminEmails.includes(email.toLowerCase()) ? 'admin' : 'user',
           });
           return done(null, user);
         } catch (error) {
