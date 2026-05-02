@@ -13,16 +13,14 @@ export default function MobileNav() {
   // Do not show navigation on the root landing page if not logged in
   if (!user || pathname === '/') return null;
 
-  const navItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: '🏠' },
-    { name: 'Institute', path: '/institute', icon: '🏛️' },
-    { name: 'Analytics', path: '/analytics', icon: '📊' },
-    { name: 'Focus', path: '/focus', icon: '⏱️' },
-  ];
-
-  if (user.role === 'admin') {
-    navItems.push({ name: 'Admin', path: '/admin', icon: '🛡️' });
-  }
+  const navItems = user.role === 'admin' 
+    ? [{ name: 'Admin', path: '/admin', icon: '🛡️' }]
+    : [
+        { name: 'Dashboard', path: '/dashboard', icon: '🏠' },
+        { name: 'Institute', path: '/institute', icon: '🏛️' },
+        { name: 'Analytics', path: '/analytics', icon: '📊' },
+        { name: 'Focus', path: '/focus', icon: '⏱️' },
+      ];
 
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-dark-900/90 backdrop-blur-xl border-t border-white/10 pb-safe">

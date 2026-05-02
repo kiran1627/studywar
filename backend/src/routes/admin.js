@@ -29,7 +29,7 @@ const TOTAL_DAYS = 23;
    ═══════════════════════════════════════════ */
 router.get('/users', async (req, res) => {
   try {
-    const users = await User.find({})
+    const users = await User.find({ role: { $ne: 'admin' } })
       .select('name email picture score streak xp level role lastActiveDate instituteProgress createdAt')
       .sort({ createdAt: -1 });
 
@@ -127,7 +127,7 @@ router.get('/users/:id', async (req, res) => {
    ═══════════════════════════════════════════ */
 router.get('/analytics', async (req, res) => {
   try {
-    const users = await User.find({}).select('xp streak lastActiveDate instituteProgress');
+    const users = await User.find({ role: { $ne: 'admin' } }).select('xp streak lastActiveDate instituteProgress');
     const totalUsers = users.length;
 
     const today = new Date().toISOString().split('T')[0];
@@ -185,7 +185,7 @@ router.get('/analytics', async (req, res) => {
    ═══════════════════════════════════════════ */
 router.get('/leaderboard', async (req, res) => {
   try {
-    const users = await User.find({})
+    const users = await User.find({ role: { $ne: 'admin' } })
       .select('name picture score streak xp instituteProgress')
       .sort({ xp: -1 })
       .limit(50);

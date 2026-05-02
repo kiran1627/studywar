@@ -29,7 +29,10 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<UserStats>({ totalDays: 0, totalCompleted: 0, monthProgress: 0, totalProblems: 0 });
   const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => { if (!loading && !user) router.push('/'); }, [user, loading, router]);
+  useEffect(() => { 
+    if (!loading && !user) router.push('/'); 
+    if (!loading && user?.role === 'admin') router.push('/admin');
+  }, [user, loading, router]);
 
   const fetchStats = useCallback(async () => {
     try { 
