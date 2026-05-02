@@ -15,6 +15,7 @@ export default function MobileNav() {
 
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: '🏠' },
+    { name: 'Institute', path: '/institute', icon: '🏛️' },
     { name: 'Analytics', path: '/analytics', icon: '📊' },
     { name: 'Focus', path: '/focus', icon: '⏱️' },
   ];

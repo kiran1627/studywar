@@ -7,7 +7,7 @@ const config: CapacitorConfig = {
   bundledWebRuntime: false,
   server: {
     // Connects to the live Vercel web app for the mobile wrapper
-    url: "https://your-app.vercel.app", 
+    url: "https://studywar-otd8.vercel.app", 
     cleartext: true
   },
   android: {
