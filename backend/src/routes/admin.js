@@ -122,6 +122,70 @@ router.get('/users/:id', async (req, res) => {
 });
 
 /* ═══════════════════════════════════════════
+   POST /api/admin/users/:id/modules
+   Update user's completed modules
+   ═══════════════════════════════════════════ */
+router.post('/users/:id/modules', async (req, res) => {
+  try {
+    const { completedModules } = req.body;
+    if (!Array.isArray(completedModules)) {
+      return res.status(400).json({ message: 'Invalid data' });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (!user.instituteProgress) user.instituteProgress = {};
+    if (!user.instituteProgress.completedDays) user.instituteProgress.completedDays = new Map();
+    if (!user.instituteProgress.unlockedModules) user.instituteProgress.unlockedModules = ['data-foundations'];
+
+    const completedDaysMap = user.instituteProgress.completedDays instanceof Map
+      ? user.instituteProgress.completedDays
+      : new Map(Object.entries(user.instituteProgress.completedDays));
+
+    // Update completed days for each module
+    MODULE_META.forEach((m) => {
+      if (completedModules.includes(m.id)) {
+        // Mark all days complete
+        const days = [];
+        for (let i = 1; i <= m.days; i++) days.push(i);
+        completedDaysMap.set(m.id, days);
+      } else {
+        // If they had it completed, should we clear it entirely? 
+        // We'll only clear if it was fully complete or if the admin unchecked it.
+        // To be safe, if it's not in completedModules, we clear it.
+        completedDaysMap.set(m.id, []);
+      }
+    });
+
+    user.instituteProgress.completedDays = completedDaysMap;
+
+    // Recalculate unlocked modules based on completed ones
+    const newUnlocked = ['data-foundations'];
+    for (let i = 0; i < MODULE_META.length - 1; i++) {
+      if (completedModules.includes(MODULE_META[i].id)) {
+        if (!newUnlocked.includes(MODULE_META[i + 1].id)) {
+          newUnlocked.push(MODULE_META[i + 1].id);
+        }
+      }
+    }
+    
+    // Preserve any existing unlocked modules that they might have unlocked manually
+    user.instituteProgress.unlockedModules.forEach(id => {
+      if (!newUnlocked.includes(id)) newUnlocked.push(id);
+    });
+    user.instituteProgress.unlockedModules = newUnlocked;
+
+    await user.save();
+
+    res.json({ message: 'Modules updated successfully' });
+  } catch (error) {
+    console.error('Admin update modules error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/* ═══════════════════════════════════════════
    GET /api/admin/analytics
    Platform-wide analytics
    ═══════════════════════════════════════════ */

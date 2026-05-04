@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
@@ -50,7 +50,10 @@ export default function InstitutePage() {
   const [toastXP, setToastXP] = useState(0);
   const [showToast, setShowToast] = useState(false);
   const [unlockToast, setUnlockToast] = useState<string | null>(null);
+  
   const [isLoading, setIsLoading] = useState(true);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Auth guard
   useEffect(() => {
@@ -86,6 +89,8 @@ export default function InstitutePage() {
   const completedDays = progress.completedDays || {};
   const totalCompleted = Object.values(completedDays).reduce((sum, days) => sum + (days?.length || 0), 0);
   const overallPercentage = TOTAL_DAYS > 0 ? (totalCompleted / TOTAL_DAYS) * 100 : 0;
+  // Note: we use progress.xp from API, but since we toggle locally, this won't reflect perfectly
+  // until they save, which gives a nice incentive to click "Save Progress".
   const earnedXP = progress.xp || 0;
 
   const completedModules = MODULES.filter((mod) => {
@@ -93,67 +98,96 @@ export default function InstitutePage() {
     return days.length === mod.days.length;
   }).length;
 
-  /* ─── Toggle day completion via API ─── */
+  /* ─── Toggle day completion locally ─── */
   const handleToggleDay = useCallback(
-    async (moduleId: string, day: number, xp: number) => {
-      try {
-        const res = await api.post('/api/progress/update', {
-          moduleId,
-          day,
-          block: 'full',
-        });
+    (moduleId: string, day: number, xp: number) => {
+      setProgress((prev) => {
+        const next = { ...prev };
+        next.completedDays = { ...next.completedDays };
+        next.dayProgress = { ...next.dayProgress };
 
-        const { xpAwarded, newlyUnlocked, progress: newProgress } = res.data;
+        const dayKey = `${moduleId}_day${day}`;
+        let moduleDays = [...(next.completedDays[moduleId] || [])];
 
-        setProgress(newProgress);
-        cacheProgress(newProgress);
-
-        if (xpAwarded > 0) {
-          setToastXP(xpAwarded);
-          setShowToast(true);
+        if (moduleDays.includes(day)) {
+          // Un-complete
+          moduleDays = moduleDays.filter(d => d !== day);
+          delete next.dayProgress[dayKey];
+        } else {
+          // Complete
+          moduleDays.push(day);
+          next.dayProgress[dayKey] = { learning: true, practice: true, build: true };
         }
+        next.completedDays[moduleId] = moduleDays;
 
-        if (newlyUnlocked) {
-          setUnlockToast(newlyUnlocked);
-          setTimeout(() => setUnlockToast(null), 3000);
-        }
-      } catch (err) {
-        console.error('Failed to update progress:', err);
-      }
+        setHasUnsavedChanges(true);
+        return next;
+      });
     },
     []
   );
 
-  /* ─── Toggle individual block via API ─── */
+  /* ─── Toggle individual block locally ─── */
   const handleToggleBlock = useCallback(
-    async (moduleId: string, day: number, block: 'learning' | 'practice' | 'build', xp: number) => {
-      try {
-        const res = await api.post('/api/progress/update', {
-          moduleId,
-          day,
-          block,
-        });
+    (moduleId: string, day: number, block: 'learning' | 'practice' | 'build', xp: number) => {
+      setProgress((prev) => {
+        const next = { ...prev };
+        next.dayProgress = { ...next.dayProgress };
+        next.completedDays = { ...next.completedDays };
 
-        const { xpAwarded, newlyUnlocked, progress: newProgress } = res.data;
+        const dayKey = `${moduleId}_day${day}`;
+        const blockProg = { ...(next.dayProgress[dayKey] || { learning: false, practice: false, build: false }) };
+        
+        blockProg[block] = !blockProg[block];
+        next.dayProgress[dayKey] = blockProg;
 
-        setProgress(newProgress);
-        cacheProgress(newProgress);
-
-        if (xpAwarded > 0) {
-          setToastXP(xpAwarded);
-          setShowToast(true);
+        const allDone = blockProg.learning && blockProg.practice && blockProg.build;
+        let moduleDays = [...(next.completedDays[moduleId] || [])];
+        
+        if (allDone && !moduleDays.includes(day)) {
+          moduleDays.push(day);
+        } else if (!allDone && moduleDays.includes(day)) {
+          moduleDays = moduleDays.filter(d => d !== day);
         }
+        next.completedDays[moduleId] = moduleDays;
 
-        if (newlyUnlocked) {
-          setUnlockToast(newlyUnlocked);
-          setTimeout(() => setUnlockToast(null), 3000);
-        }
-      } catch (err) {
-        console.error('Failed to update block:', err);
-      }
+        setHasUnsavedChanges(true);
+        return next;
+      });
     },
     []
   );
+
+  /* ─── Sync changes to backend ─── */
+  const handleSaveProgress = async () => {
+    setIsSaving(true);
+    try {
+      const res = await api.post('/api/progress/sync', {
+        completedDays: progress.completedDays,
+        dayProgress: progress.dayProgress,
+      });
+
+      const { xpAwarded, newlyUnlocked, progress: newProgress } = res.data;
+
+      setProgress(newProgress);
+      cacheProgress(newProgress);
+      setHasUnsavedChanges(false);
+
+      if (xpAwarded > 0) {
+        setToastXP(xpAwarded);
+        setShowToast(true);
+      }
+
+      if (newlyUnlocked) {
+        setUnlockToast(newlyUnlocked);
+        setTimeout(() => setUnlockToast(null), 3000);
+      }
+    } catch (err) {
+      console.error('Failed to sync progress:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   /* ─── Loading / auth states ─── */
   if (loading || !user) {
@@ -194,6 +228,30 @@ export default function InstitutePage() {
           </div>
         </motion.div>
       )}
+
+      {/* Floating Save Button */}
+      <AnimatePresence>
+        {hasUnsavedChanges && (
+          <motion.div
+            initial={{ opacity: 0, y: 100 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 100 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100]"
+          >
+            <button
+              onClick={handleSaveProgress}
+              disabled={isSaving}
+              className="px-8 py-3 bg-gradient-to-r from-neon-purple to-neon-blue text-white font-bold rounded-full shadow-[0_0_30px_rgba(124,58,237,0.4)] hover:shadow-[0_0_40px_rgba(124,58,237,0.6)] transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              {isSaving ? (
+                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }} className="w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
+              ) : (
+                <span>💾 Save Progress</span>
+              )}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <main className="relative z-10 pt-20 pb-24 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
         {/* ═══ Hero Section ═══ */}

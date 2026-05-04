@@ -235,4 +235,110 @@ router.post('/update', authMiddleware, async (req, res) => {
   }
 });
 
+/* ═══════════════════════════════════════════
+   POST /api/progress/sync
+   Bulk sync progress (used by manual Save button)
+   Body: { completedDays: {}, dayProgress: {} }
+   ═══════════════════════════════════════════ */
+router.post('/sync', authMiddleware, async (req, res) => {
+  try {
+    const { completedDays, dayProgress } = req.body;
+    if (!completedDays || !dayProgress) {
+      return res.status(400).json({ message: 'completedDays and dayProgress are required' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user.instituteProgress) {
+      user.instituteProgress = {
+        currentDay: 1,
+        xp: 0,
+        unlockedModules: ['data-foundations'],
+        completedDays: new Map(),
+        dayProgress: new Map(),
+      };
+    }
+
+    const progress = user.instituteProgress;
+    const oldInstituteXP = progress.xp || 0;
+
+    // Convert requested plain objects back to Maps
+    progress.completedDays = new Map(Object.entries(completedDays));
+    progress.dayProgress = new Map(Object.entries(dayProgress));
+
+    // Recalculate total completed days
+    let totalCompleted = 0;
+    progress.completedDays.forEach((days, moduleId) => {
+      // Filter out invalid days just in case
+      const validDays = (days || []).filter(d => d >= 1 && d <= (MODULE_DAY_COUNT[moduleId] || 0));
+      progress.completedDays.set(moduleId, validDays);
+      totalCompleted += validDays.length;
+    });
+
+    // Recalculate XP
+    const newInstituteXP = totalCompleted * XP_PER_DAY;
+    const xpDiff = newInstituteXP - oldInstituteXP;
+
+    progress.xp = newInstituteXP;
+    user.xp = Math.max(0, (user.xp || 0) + xpDiff);
+    progress.currentDay = Math.min(totalCompleted + 1, Object.values(MODULE_DAY_COUNT).reduce((a,b)=>a+b, 0));
+
+    // Recalculate unlocked modules based on order
+    let newlyUnlocked = null;
+    const newUnlockedList = ['data-foundations'];
+    
+    for (let i = 0; i < MODULE_ORDER.length - 1; i++) {
+      const currentMod = MODULE_ORDER[i];
+      const nextMod = MODULE_ORDER[i + 1];
+      const completedArr = progress.completedDays.get(currentMod) || [];
+      
+      if (completedArr.length === MODULE_DAY_COUNT[currentMod]) {
+        newUnlockedList.push(nextMod);
+      } else {
+        // If they haven't completed this one, they don't unlock anything further automatically
+        // BUT we should preserve whatever they already had unlocked manually (e.g. by an admin)
+        break;
+      }
+    }
+
+    // Preserve previously unlocked modules that might not be auto-unlocked anymore
+    // (Optional: if we strictly want to lock them again, we wouldn't do this. 
+    // But usually we don't want to revoke access).
+    progress.unlockedModules.forEach(m => {
+      if (!newUnlockedList.includes(m)) newUnlockedList.push(m);
+    });
+
+    // Check if there's any module unlocked *just now* that wasn't before
+    const newlyAdded = newUnlockedList.find(m => !progress.unlockedModules.includes(m));
+    if (newlyAdded) newlyUnlocked = newlyAdded;
+
+    progress.unlockedModules = newUnlockedList;
+
+    user.markModified('instituteProgress');
+    await user.save();
+
+    // Prepare response maps
+    const completedDaysObj = {};
+    progress.completedDays.forEach((val, key) => { completedDaysObj[key] = val; });
+    
+    const dayProgressObj = {};
+    progress.dayProgress.forEach((val, key) => { dayProgressObj[key] = val; });
+
+    res.json({
+      xpAwarded: Math.max(0, xpDiff), // Only show positive XP to the user toast
+      newlyUnlocked,
+      progress: {
+        currentDay: progress.currentDay,
+        xp: progress.xp,
+        unlockedModules: progress.unlockedModules,
+        completedDays: completedDaysObj,
+        dayProgress: dayProgressObj,
+      },
+    });
+
+  } catch (error) {
+    console.error('Sync progress error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;

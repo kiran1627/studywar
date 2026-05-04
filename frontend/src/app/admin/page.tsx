@@ -65,24 +65,23 @@ export default function AdminPage() {
   }, [user, loading, router]);
 
   // Fetch data
+  const fetchData = async () => {
+    try {
+      const [usersRes, analyticsRes] = await Promise.all([
+        api.get('/api/admin/users'),
+        api.get('/api/admin/analytics'),
+      ]);
+      setUsers(usersRes.data);
+      setAnalytics(analyticsRes.data);
+    } catch (err) {
+      console.error('Admin data fetch error:', err);
+    } finally {
+      setDataLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!user || user.role !== 'admin') return;
-
-    const fetchData = async () => {
-      try {
-        const [usersRes, analyticsRes] = await Promise.all([
-          api.get('/api/admin/users'),
-          api.get('/api/admin/analytics'),
-        ]);
-        setUsers(usersRes.data);
-        setAnalytics(analyticsRes.data);
-      } catch (err) {
-        console.error('Admin data fetch error:', err);
-      } finally {
-        setDataLoading(false);
-      }
-    };
-
     fetchData();
   }, [user]);
 
@@ -193,7 +192,7 @@ export default function AdminPage() {
           </div>
         ) : (
           <>
-            {activeTab === 'users' && <AdminUserTable users={users} />}
+            {activeTab === 'users' && <AdminUserTable users={users} onUpdate={fetchData} />}
             {activeTab === 'analytics' && analytics && <AdminAnalytics analytics={analytics} />}
             {activeTab === 'leaderboard' && <AdminLeaderboard users={users} />}
           </>
