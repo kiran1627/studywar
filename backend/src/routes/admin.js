@@ -1,5 +1,6 @@
 const express = require('express');
 const User = require('../models/User');
+const Task = require('../models/Task');
 const authMiddleware = require('../middleware/auth');
 const adminMiddleware = require('../middleware/admin');
 const router = express.Router();
@@ -351,4 +352,167 @@ router.get('/leaderboard', async (req, res) => {
   }
 });
 
+/* ═══════════════════════════════════════════
+   GET /api/admin/reports
+   Detailed per-user analytics report
+   ═══════════════════════════════════════════ */
+router.get('/reports', async (req, res) => {
+  try {
+    const users = await User.find({ role: { $ne: 'admin' } })
+      .select('name email picture score streak xp level lastActiveDate instituteProgress createdAt')
+      .sort({ createdAt: -1 });
+
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+    // Fetch all tasks for all users
+    const allTasks = await Task.find({});
+
+    // Group tasks by userId
+    const tasksByUser = {};
+    allTasks.forEach(t => {
+      const uid = t.userId.toString();
+      if (!tasksByUser[uid]) tasksByUser[uid] = [];
+      tasksByUser[uid].push(t);
+    });
+
+    const userReports = users.map(u => {
+      const uid = u._id.toString();
+      const tasks = tasksByUser[uid] || [];
+
+      // Session stats
+      const totalSessions = tasks.reduce((acc, t) => acc + (t.morning ? 1 : 0) + (t.evening ? 1 : 0), 0);
+      const totalMorning = tasks.reduce((acc, t) => acc + (t.morning ? 1 : 0), 0);
+      const totalEvening = tasks.reduce((acc, t) => acc + (t.evening ? 1 : 0), 0);
+      const totalProblems = tasks.reduce((acc, t) => acc + (t.problems || 0), 0);
+      const studyHours = totalSessions * 2;
+      const activeDays = tasks.filter(t => t.morning || t.evening).length;
+
+      // Last 7 days activity
+      const recentTasks = tasks.filter(t => t.date >= sevenDaysAgoStr);
+      const recentSessions = recentTasks.reduce((acc, t) => acc + (t.morning ? 1 : 0) + (t.evening ? 1 : 0), 0);
+      const recentProblems = recentTasks.reduce((acc, t) => acc + (t.problems || 0), 0);
+
+      // Last 30 days activity
+      const monthTasks = tasks.filter(t => t.date >= thirtyDaysAgoStr);
+      const monthSessions = monthTasks.reduce((acc, t) => acc + (t.morning ? 1 : 0) + (t.evening ? 1 : 0), 0);
+      const monthProblems = monthTasks.reduce((acc, t) => acc + (t.problems || 0), 0);
+
+      // Institute progress
+      const p = u.instituteProgress || {};
+      const completedDays = p.completedDays || {};
+      let instituteCompleted = 0;
+      if (completedDays instanceof Map) {
+        completedDays.forEach((days) => { instituteCompleted += (days || []).length; });
+      } else if (completedDays.forEach) {
+        completedDays.forEach((days) => { instituteCompleted += (days || []).length; });
+      } else {
+        Object.values(completedDays).forEach((days) => { instituteCompleted += (days || []).length; });
+      }
+
+      const modulesCompleted = MODULE_META.filter(m => {
+        let days;
+        if (completedDays instanceof Map) {
+          days = completedDays.get(m.id) || [];
+        } else {
+          days = completedDays[m.id] || [];
+        }
+        return days.length === m.days;
+      }).length;
+
+      // Engagement level
+      let engagement = 'Inactive';
+      if (u.lastActiveDate === todayStr) engagement = 'Active Today';
+      else if (u.lastActiveDate && u.lastActiveDate >= sevenDaysAgoStr) engagement = 'Active This Week';
+      else if (u.lastActiveDate && u.lastActiveDate >= thirtyDaysAgoStr) engagement = 'Active This Month';
+
+      // Daily problems for past 7 days (for sparkline)
+      const dailyActivity = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(today);
+        d.setDate(d.getDate() - (6 - i));
+        const dateStr = d.toISOString().split('T')[0];
+        const task = tasks.find(t => t.date === dateStr);
+        return {
+          date: dateStr,
+          problems: task?.problems || 0,
+          sessions: (task?.morning ? 1 : 0) + (task?.evening ? 1 : 0),
+        };
+      });
+
+      return {
+        _id: u._id,
+        name: u.name,
+        email: u.email,
+        picture: u.picture,
+        score: u.score,
+        streak: u.streak,
+        xp: u.xp || 0,
+        level: u.level || 0,
+        lastActiveDate: u.lastActiveDate,
+        createdAt: u.createdAt,
+        engagement,
+        study: {
+          totalSessions,
+          totalMorning,
+          totalEvening,
+          totalProblems,
+          studyHours,
+          activeDays,
+        },
+        recent: {
+          sessions: recentSessions,
+          problems: recentProblems,
+        },
+        monthly: {
+          sessions: monthSessions,
+          problems: monthProblems,
+        },
+        institute: {
+          xp: p.xp || 0,
+          completedDays: instituteCompleted,
+          totalDays: TOTAL_DAYS,
+          modulesCompleted,
+          totalModules: MODULE_META.length,
+          progress: Math.round((instituteCompleted / TOTAL_DAYS) * 100),
+        },
+        dailyActivity,
+      };
+    });
+
+    // Aggregated platform stats
+    const totalStudyHours = userReports.reduce((acc, u) => acc + u.study.studyHours, 0);
+    const totalProblems = userReports.reduce((acc, u) => acc + u.study.totalProblems, 0);
+    const activeToday = userReports.filter(u => u.engagement === 'Active Today').length;
+    const activeThisWeek = userReports.filter(u => u.engagement === 'Active Today' || u.engagement === 'Active This Week').length;
+    const avgProgress = userReports.length > 0
+      ? Math.round(userReports.reduce((acc, u) => acc + u.institute.progress, 0) / userReports.length)
+      : 0;
+
+    res.json({
+      summary: {
+        totalUsers: userReports.length,
+        totalStudyHours,
+        totalProblems,
+        activeToday,
+        activeThisWeek,
+        avgProgress,
+        avgStreak: userReports.length > 0
+          ? Math.round(userReports.reduce((acc, u) => acc + u.streak, 0) / userReports.length)
+          : 0,
+      },
+      users: userReports,
+    });
+  } catch (error) {
+    console.error('Admin reports error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;
+

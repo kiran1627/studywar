@@ -8,6 +8,7 @@ import Navbar from '@/components/Navbar';
 import AdminUserTable from '@/components/admin/AdminUserTable';
 import AdminAnalytics from '@/components/admin/AdminAnalytics';
 import AdminLeaderboard from '@/components/admin/AdminLeaderboard';
+import AdminReports from '@/components/admin/AdminReports';
 import api from '@/lib/api';
 
 interface AdminUser {
@@ -48,7 +49,7 @@ interface Analytics {
   }[];
 }
 
-type Tab = 'users' | 'analytics' | 'leaderboard';
+type Tab = 'users' | 'analytics' | 'leaderboard' | 'reports';
 
 export default function AdminPage() {
   const { user, loading } = useAuth();
@@ -100,6 +101,7 @@ export default function AdminPage() {
   const tabs: { key: Tab; label: string; icon: string }[] = [
     { key: 'users', label: 'Users', icon: '👥' },
     { key: 'analytics', label: 'Analytics', icon: '📊' },
+    { key: 'reports', label: 'Reports', icon: '📄' },
     { key: 'leaderboard', label: 'Leaderboard', icon: '🏆' },
   ];
 
@@ -194,6 +196,7 @@ export default function AdminPage() {
           <>
             {activeTab === 'users' && <AdminUserTable users={users} onUpdate={fetchData} />}
             {activeTab === 'analytics' && analytics && <AdminAnalytics analytics={analytics} />}
+            {activeTab === 'reports' && <AdminReports />}
             {activeTab === 'leaderboard' && <AdminLeaderboard users={users} />}
           </>
         )}
