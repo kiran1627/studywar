@@ -23,4 +23,5 @@ export interface User {
   xp: number;
   level: number;
   role: 'user' | 'admin';
+  createdAt: string;
 }
