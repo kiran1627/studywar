@@ -186,6 +186,76 @@ router.post('/users/:id/modules', async (req, res) => {
 });
 
 /* ═══════════════════════════════════════════
+   POST /api/admin/users
+   Create a new user manually
+   ═══════════════════════════════════════════ */
+router.post('/users', async (req, res) => {
+  try {
+    const { name, email, role } = req.body;
+
+    if (!name || !email) {
+      return res.status(400).json({ message: 'Name and email are required' });
+    }
+
+    // Check if user already exists
+    const existing = await User.findOne({ email: email.toLowerCase().trim() });
+    if (existing) {
+      return res.status(409).json({ message: 'A user with this email already exists' });
+    }
+
+    const newUser = new User({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      role: role === 'admin' ? 'admin' : 'user',
+      score: 0,
+      streak: 0,
+      xp: 0,
+      level: 0,
+    });
+
+    await newUser.save();
+
+    res.status(201).json({
+      message: 'User created successfully',
+      user: {
+        _id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+      },
+    });
+  } catch (error) {
+    console.error('Admin create user error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/* ═══════════════════════════════════════════
+   DELETE /api/admin/users/:id
+   Delete a user
+   ═══════════════════════════════════════════ */
+router.delete('/users/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Prevent deleting yourself (the admin)
+    if (user._id.toString() === req.user._id.toString()) {
+      return res.status(400).json({ message: 'You cannot delete your own account' });
+    }
+
+    await User.findByIdAndDelete(req.params.id);
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Admin delete user error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/* ═══════════════════════════════════════════
    GET /api/admin/analytics
    Platform-wide analytics
    ═══════════════════════════════════════════ */

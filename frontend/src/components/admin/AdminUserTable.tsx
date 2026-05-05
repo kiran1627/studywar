@@ -39,6 +39,18 @@ export default function AdminUserTable({ users, onUpdate }: { users: AdminUser[]
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(false);
 
+  // Add User Modal State
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newRole, setNewRole] = useState<'user' | 'admin'>('user');
+  const [isAdding, setIsAdding] = useState(false);
+  const [addError, setAddError] = useState('');
+
+  // Delete Confirmation State
+  const [deletingUser, setDeletingUser] = useState<AdminUser | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortAsc(!sortAsc);
     else { setSortKey(key); setSortAsc(false); }
@@ -72,6 +84,7 @@ export default function AdminUserTable({ users, onUpdate }: { users: AdminUser[]
     </span>
   );
 
+  /* ─── Edit Module Modal ─── */
   const openEditModal = async (u: AdminUser) => {
     setEditingUser(u);
     setIsLoadingUser(true);
@@ -122,14 +135,57 @@ export default function AdminUserTable({ users, onUpdate }: { users: AdminUser[]
     }
   };
 
+  /* ─── Add User ─── */
+  const handleAddUser = async () => {
+    if (!newName.trim() || !newEmail.trim()) {
+      setAddError('Name and email are required');
+      return;
+    }
+    setIsAdding(true);
+    setAddError('');
+    try {
+      await api.post('/api/admin/users', {
+        name: newName.trim(),
+        email: newEmail.trim(),
+        role: newRole,
+      });
+      setShowAddModal(false);
+      setNewName('');
+      setNewEmail('');
+      setNewRole('user');
+      if (onUpdate) onUpdate();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Failed to create user';
+      setAddError(msg);
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  /* ─── Delete User ─── */
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return;
+    setIsDeleting(true);
+    try {
+      await api.delete(`/api/admin/users/${deletingUser._id}`);
+      setDeletingUser(null);
+      if (onUpdate) onUpdate();
+    } catch (err: any) {
+      console.error('Failed to delete user', err);
+      alert(err?.response?.data?.message || 'Failed to delete user');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <>
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        {/* Search */}
-        <div className="mb-4">
+        {/* Search + Add User */}
+        <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
           <input
             type="text"
             placeholder="Search by name or email..."
@@ -137,6 +193,12 @@ export default function AdminUserTable({ users, onUpdate }: { users: AdminUser[]
             onChange={(e) => setSearch(e.target.value)}
             className="w-full sm:w-80 px-4 py-2.5 rounded-xl bg-dark-800/80 border border-white/5 text-sm text-white placeholder-gray-500 outline-none focus:border-neon-purple/30 transition-colors"
           />
+          <button
+            onClick={() => { setShowAddModal(true); setAddError(''); }}
+            className="px-5 py-2.5 bg-gradient-to-r from-neon-green/80 to-neon-blue/80 text-white text-sm font-bold rounded-xl shadow-[0_0_16px_rgba(0,255,136,0.2)] hover:shadow-[0_0_24px_rgba(0,255,136,0.4)] transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap"
+          >
+            <span className="text-base">➕</span> Add User
+          </button>
         </div>
 
         {/* Table */}
@@ -246,12 +308,20 @@ export default function AdminUserTable({ users, onUpdate }: { users: AdminUser[]
 
                     {/* Actions */}
                     <td className="px-4 py-3 text-right">
-                      <button 
-                        onClick={() => openEditModal(u)}
-                        className="px-3 py-1 bg-neon-purple/10 text-neon-purple text-xs font-bold rounded-lg border border-neon-purple/20 hover:bg-neon-purple hover:text-white transition-all cursor-pointer"
-                      >
-                        Edit
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                          onClick={() => openEditModal(u)}
+                          className="px-3 py-1 bg-neon-purple/10 text-neon-purple text-xs font-bold rounded-lg border border-neon-purple/20 hover:bg-neon-purple hover:text-white transition-all cursor-pointer"
+                        >
+                          Edit
+                        </button>
+                        <button 
+                          onClick={() => setDeletingUser(u)}
+                          className="px-3 py-1 bg-red-500/10 text-red-400 text-xs font-bold rounded-lg border border-red-500/20 hover:bg-red-500 hover:text-white transition-all cursor-pointer"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </motion.tr>
                 ))}
@@ -272,7 +342,7 @@ export default function AdminUserTable({ users, onUpdate }: { users: AdminUser[]
         </p>
       </motion.div>
 
-      {/* Edit User Modal */}
+      {/* ═══ Edit User Modal ═══ */}
       <AnimatePresence>
         {editingUser && (
           <>
@@ -351,6 +421,172 @@ export default function AdminUserTable({ users, onUpdate }: { users: AdminUser[]
                 >
                   {isSaving ? 'Saving Update...' : 'Save Update'}
                 </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ═══ Add User Modal ═══ */}
+      <AnimatePresence>
+        {showAddModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+              onClick={() => setShowAddModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed top-[15%] left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-dark-800 border border-white/10 rounded-2xl shadow-2xl z-[101]"
+            >
+              <div className="p-5 border-b border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">➕</span>
+                  <h3 className="text-lg font-bold text-white">Add New User</h3>
+                </div>
+                <button 
+                  onClick={() => setShowAddModal(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-400 transition-colors cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                {/* Name */}
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Name</label>
+                  <input
+                    type="text"
+                    placeholder="Enter full name"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-dark-900 border border-white/10 text-sm text-white placeholder-gray-600 outline-none focus:border-neon-purple/40 transition-colors"
+                  />
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Email</label>
+                  <input
+                    type="email"
+                    placeholder="Enter email address"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-dark-900 border border-white/10 text-sm text-white placeholder-gray-600 outline-none focus:border-neon-purple/40 transition-colors"
+                  />
+                </div>
+
+                {/* Role */}
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Role</label>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setNewRole('user')}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition-all cursor-pointer ${
+                        newRole === 'user'
+                          ? 'bg-neon-purple/15 border-neon-purple/40 text-neon-purple'
+                          : 'bg-white/[0.02] border-white/5 text-gray-500 hover:border-white/15'
+                      }`}
+                    >
+                      👤 User
+                    </button>
+                    <button
+                      onClick={() => setNewRole('admin')}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition-all cursor-pointer ${
+                        newRole === 'admin'
+                          ? 'bg-red-500/15 border-red-500/40 text-red-400'
+                          : 'bg-white/[0.02] border-white/5 text-gray-500 hover:border-white/15'
+                      }`}
+                    >
+                      🛡️ Admin
+                    </button>
+                  </div>
+                </div>
+
+                {/* Error */}
+                <AnimatePresence>
+                  {addError && (
+                    <motion.p
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="text-red-400 text-sm font-medium text-center"
+                    >
+                      ⚠️ {addError}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div className="p-5 border-t border-white/5 bg-black/20 rounded-b-2xl">
+                <button
+                  onClick={handleAddUser}
+                  disabled={isAdding}
+                  className="w-full py-3 bg-gradient-to-r from-neon-green/80 to-neon-blue/80 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(0,255,136,0.2)] hover:shadow-[0_0_30px_rgba(0,255,136,0.4)] transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {isAdding ? 'Creating User...' : 'Create User'}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ═══ Delete Confirmation Modal ═══ */}
+      <AnimatePresence>
+        {deletingUser && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+              onClick={() => setDeletingUser(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed top-[25%] left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-dark-800 border border-red-500/20 rounded-2xl shadow-2xl z-[101]"
+            >
+              <div className="p-6 text-center">
+                <motion.div
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4"
+                >
+                  <span className="text-3xl">⚠️</span>
+                </motion.div>
+                <h3 className="text-lg font-bold text-white mb-2">Delete User?</h3>
+                <p className="text-sm text-gray-400 mb-1">
+                  Are you sure you want to delete
+                </p>
+                <p className="text-sm font-bold text-white mb-1">{deletingUser.name}</p>
+                <p className="text-xs text-gray-500 mb-5">{deletingUser.email}</p>
+                <p className="text-xs text-red-400/80 mb-6">
+                  This action cannot be undone. All user data will be permanently removed.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setDeletingUser(null)}
+                    className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm font-medium text-gray-400 hover:text-white hover:border-white/20 transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteUser}
+                    disabled={isDeleting}
+                    className="flex-1 py-2.5 rounded-xl bg-red-500/20 border border-red-500/30 text-sm font-bold text-red-400 hover:bg-red-500 hover:text-white transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    {isDeleting ? 'Deleting...' : 'Delete'}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </>
