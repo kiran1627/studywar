@@ -14,13 +14,16 @@ export default function MobileNav() {
   if (!user || pathname === '/') return null;
 
   const navItems = user.role === 'admin' 
-    ? [{ name: 'Admin', path: '/admin', icon: '🛡️' }]
+    ? [
+        { name: 'Admin', path: '/admin', icon: '🛡️' },
+        { name: 'Profile', path: '/profile', icon: '👤' },
+      ]
     : [
         { name: 'Dashboard', path: '/dashboard', icon: '🏠' },
         { name: 'Institute', path: '/institute', icon: '🏛️' },
         { name: 'Classroom', path: '/classroom', icon: '📚' },
         { name: 'Analytics', path: '/analytics', icon: '📊' },
-        { name: 'Focus', path: '/focus', icon: '⏱️' },
+        { name: 'Profile', path: '/profile', icon: '👤' },
       ];
 
   return (

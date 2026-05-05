@@ -44,7 +44,7 @@ const Navbar: React.FC = () => {
               <span className="text-lg fire-glow">🔥</span>
               <span className="text-sm font-bold text-orange-400">{user.streak}</span>
             </motion.div>
-            <div className="flex items-center gap-3">
+            <Link href="/profile" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
               <div className="hidden sm:block text-right">
                 <p className="text-sm font-medium text-white truncate max-w-[120px]">{user.name}</p>
                 <p className="text-xs text-gray-400">{user.score.toLocaleString()} pts</p>
@@ -56,7 +56,7 @@ const Navbar: React.FC = () => {
                   <span className="text-sm font-bold text-neon-purple">{user.name.charAt(0)}</span>
                 </div>
               )}
-            </div>
+            </Link>
             <motion.button id="logout-btn" onClick={logout} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
               className="px-2 sm:px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/20 transition-colors cursor-pointer flex items-center justify-center">
               <span className="hidden sm:inline">Logout</span>
