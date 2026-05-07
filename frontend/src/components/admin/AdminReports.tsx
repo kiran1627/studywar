@@ -180,7 +180,8 @@ export default function AdminReports() {
   );
 
   return (
-    <div className="space-y-8 pb-12">
+    <>
+      <div className="space-y-8 pb-12">
       {/* ─── Summary Report ─── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="glass-card p-6 bg-gradient-to-br from-neon-purple/10 to-transparent">
