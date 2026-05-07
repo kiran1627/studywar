@@ -174,8 +174,15 @@ export default function HomePage() {
         {/* ── CTA ── */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9 }}
           className="relative z-10">
-          <LoginButton onClick={login} />
-          <p className="text-center mt-4 text-xs text-gray-600">Free forever • No credit card • Instant start</p>
+          <motion.button 
+            onClick={() => router.push('/login')}
+            whileHover={{ scale: 1.05 }} 
+            whileTap={{ scale: 0.95 }}
+            className="px-10 py-4 bg-gradient-to-r from-neon-purple to-neon-blue rounded-2xl text-white font-bold text-xl shadow-[0_0_30px_rgba(124,58,237,0.4)] hover:shadow-[0_0_50px_rgba(124,58,237,0.6)] transition-all duration-300"
+          >
+            Join the War
+          </motion.button>
+          <p className="text-center mt-4 text-xs text-gray-600 uppercase tracking-widest font-bold">Free forever • No credit card</p>
         </motion.div>
 
         {/* ── Scroll indicator ── */}
@@ -360,8 +367,15 @@ export default function HomePage() {
               Ready to <span className="neon-text">Declare War</span> on Mediocrity?
             </h2>
             <p className="text-lg text-gray-400 mb-10">Join hundreds of warriors who are leveling up every single day.</p>
-            <LoginButton onClick={login} />
-            <p className="mt-6 text-xs text-gray-600">No API costs • Works offline • Forever free</p>
+            <motion.button 
+              onClick={() => router.push('/login')}
+              whileHover={{ scale: 1.05 }} 
+              whileTap={{ scale: 0.95 }}
+              className="px-12 py-5 bg-white text-dark-900 rounded-2xl font-black text-2xl shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:shadow-[0_0_60px_rgba(255,255,255,0.4)] transition-all duration-300"
+            >
+              Start Your Journey
+            </motion.button>
+            <p className="mt-6 text-xs text-gray-600 uppercase tracking-widest font-bold">Offline-Ready • Real-time Stats</p>
           </motion.div>
         </div>
       </section>

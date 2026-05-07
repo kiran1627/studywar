@@ -10,8 +10,8 @@ export default function MobileNav() {
   const { user } = useAuth();
   const pathname = usePathname();
 
-  // Do not show navigation on the root landing page if not logged in
-  if (!user || pathname === '/') return null;
+  // Do not show navigation on the root landing page or login page if not logged in
+  if (!user || pathname === '/' || pathname === '/login') return null;
 
   const navItems = user.role === 'admin' 
     ? [
