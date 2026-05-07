@@ -158,9 +158,9 @@ export default function AdminReports() {
       });
 
       doc.save(`StudyWar_Report_${new Date().toISOString().split('T')[0]}.pdf`);
-    } catch (err) {
+    } catch (err: any) {
       console.error('PDF Generation Error:', err);
-      alert('Failed to generate PDF. Please try again.');
+      alert(`Failed to generate PDF: ${err?.message || 'Please try again'}`);
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -342,15 +342,6 @@ export default function AdminReports() {
         </div>
       </div>
     </div>
-    
-    <Script 
-      src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" 
-      strategy="lazyOnload" 
-    />
-    <Script 
-      src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js" 
-      strategy="lazyOnload" 
-    />
   </>
   );
 }

@@ -5,6 +5,7 @@ import CapacitorSetup from '@/components/CapacitorSetup';
 import MobileNav from '@/components/MobileNav';
 
 import NotificationSetup from '@/components/NotificationSetup';
+import Script from 'next/script';
 
 export const metadata: Metadata = {
   title: 'StudyWar 🚀 | Gamified Coding Habit Tracker',
@@ -40,6 +41,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
           <MobileNav />
         </AuthProvider>
+        
+        <Script 
+          src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" 
+          strategy="afterInteractive"
+        />
+        <Script 
+          src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js" 
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
