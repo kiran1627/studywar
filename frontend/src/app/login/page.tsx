@@ -31,9 +31,19 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen bg-dark-900 text-white flex flex-col items-center justify-center px-4 relative overflow-hidden">
+      {/* Background Image with Overlay */}
+      <div className="absolute inset-0 z-0">
+        <img 
+          src="/assets/login-bg.png" 
+          alt="Login Background" 
+          className="w-full h-full object-cover opacity-40"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-dark-900/80 via-dark-900/40 to-dark-900/80" />
+      </div>
+
       {/* Background elements */}
-      <div className="absolute inset-0 gradient-shift opacity-30" />
-      <div className="absolute inset-0 bg-grid opacity-20" />
+      <div className="absolute inset-0 gradient-shift opacity-20" />
+      <div className="absolute inset-0 bg-grid opacity-10" />
       <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-neon-purple/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-neon-blue/10 rounded-full blur-[120px] pointer-events-none" />
 
@@ -58,10 +68,10 @@ export default function LoginPage() {
             </motion.div>
           </Link>
           <h1 className="text-4xl font-black mb-3 tracking-tight">
-            Welcome to <span className="neon-text">StudyWar</span>
+            Ignite <span className="neon-text">StudyWar</span>
           </h1>
           <p className="text-gray-400">
-            Sign in to continue your journey and conquer your goals.
+            Shift into gear and conquer your coding goals.
           </p>
         </div>
 
@@ -70,7 +80,7 @@ export default function LoginPage() {
           
           <div className="space-y-6">
             <div className="text-center space-y-2">
-              <h2 className="text-xl font-bold text-white">Warrior Login</h2>
+              <h2 className="text-xl font-bold text-white uppercase tracking-widest">Engine Start</h2>
               <p className="text-sm text-gray-500">Secure access via Google Authentication</p>
             </div>
 
