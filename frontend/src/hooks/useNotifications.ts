@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { getFCMToken } from '../lib/firebase';
-import { api } from '../utils/api'; // assuming an api utility exists or we can use fetch/axios
 
 export const useNotifications = () => {
   useEffect(() => {
