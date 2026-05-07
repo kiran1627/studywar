@@ -3,6 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import api from '@/lib/api';
+import Script from 'next/script';
+
+declare global {
+  interface Window {
+    jspdf: any;
+  }
+}
 
 interface UserReport {
   _id: string;
@@ -53,6 +60,91 @@ export default function AdminReports() {
   const [data, setData] = useState<ReportsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+
+  const generatePDF = async () => {
+    if (!data || !window.jspdf) return;
+    setIsGeneratingPDF(true);
+
+    try {
+      const doc = new window.jspdf.jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      // Header
+      doc.setFillColor(15, 15, 20); // Dark background
+      doc.rect(0, 0, pageWidth, 40, 'F');
+      
+      doc.setTextColor(124, 58, 237); // Neon Purple
+      doc.setFontSize(24);
+      doc.setFont('helvetica', 'bold');
+      doc.text('STUDYWAR', 15, 25);
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(12);
+      doc.text('Analytics & Engagement Report', 15, 32);
+      
+      doc.setTextColor(150, 150, 150);
+      doc.setFontSize(10);
+      doc.text(`Generated on: ${new Date().toLocaleString()}`, pageWidth - 15, 25, { align: 'right' });
+
+      // Summary Section
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(16);
+      doc.text('Platform Summary', 15, 55);
+      
+      const summaryData = [
+        ['Total Study Hours', `${data.summary.totalStudyHours}h`],
+        ['Problems Solved', data.summary.totalProblems.toLocaleString()],
+        ['Weekly Active Users', data.summary.activeThisWeek.toString()],
+        ['Average Progress', `${Math.round(data.summary.avgProgress)}%`],
+        ['Average Streak', `${data.summary.avgStreak} days`]
+      ];
+
+      (doc as any).autoTable({
+        startY: 60,
+        head: [['Metric', 'Value']],
+        body: summaryData,
+        theme: 'striped',
+        headStyles: { fillColor: [124, 58, 237], textColor: [255, 255, 255] },
+        styles: { fontSize: 10, cellPadding: 4 },
+      });
+
+      // User Details Section
+      const finalY = (doc as any).lastAutoTable.finalY || 60;
+      doc.setFontSize(16);
+      doc.text('Detailed User Activity', 15, finalY + 15);
+
+      const tableData = filteredUsers.map(u => [
+        u.name,
+        u.email,
+        `${u.study.studyHours}h`,
+        u.study.totalProblems.toString(),
+        `${u.institute.progress}%`,
+        u.streak.toString(),
+        u.engagement
+      ]);
+
+      (doc as any).autoTable({
+        startY: finalY + 20,
+        head: [['Name', 'Email', 'Hours', 'Solved', 'Progress', 'Streak', 'Status']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [30, 30, 40], textColor: [255, 255, 255] },
+        styles: { fontSize: 8, cellPadding: 3 },
+        columnStyles: {
+          0: { fontStyle: 'bold' },
+          4: { fontStyle: 'bold', textColor: [124, 58, 237] }
+        }
+      });
+
+      doc.save(`StudyWar_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (err) {
+      console.error('PDF Generation Error:', err);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -115,6 +207,32 @@ export default function AdminReports() {
             <span>Detailed User Activity</span>
             <span className="text-xs bg-dark-800 text-gray-400 px-2 py-1 rounded-full">{filteredUsers.length} Users</span>
           </h3>
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          <button
+            onClick={generatePDF}
+            disabled={isGeneratingPDF}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+              isGeneratingPDF 
+                ? 'bg-dark-800 text-gray-500 cursor-not-allowed' 
+                : 'bg-neon-purple/20 border border-neon-purple/30 text-neon-purple hover:bg-neon-purple/30'
+            }`}
+          >
+            {isGeneratingPDF ? (
+              <>
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  className="w-4 h-4 border-2 border-neon-purple border-t-transparent rounded-full"
+                />
+                Generating...
+              </>
+            ) : (
+              <>
+                <span>📥</span>
+                Download PDF
+              </>
+            )}
+          </button>
           <input
             type="text"
             placeholder="Search report..."
@@ -122,6 +240,7 @@ export default function AdminReports() {
             onChange={(e) => setSearch(e.target.value)}
             className="px-4 py-2 rounded-xl bg-dark-800 border border-white/5 text-sm text-white placeholder-gray-500 outline-none focus:border-neon-purple/30 transition-all w-64"
           />
+        </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4">
@@ -202,5 +321,15 @@ export default function AdminReports() {
         </div>
       </div>
     </div>
+    
+    <Script 
+      src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" 
+      strategy="afterInteractive" 
+    />
+    <Script 
+      src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js" 
+      strategy="afterInteractive" 
+    />
+  </>
   );
 }
