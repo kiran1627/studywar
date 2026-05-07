@@ -8,6 +8,7 @@ import Script from 'next/script';
 declare global {
   interface Window {
     jspdf: any;
+    jsPDF: any;
   }
 }
 
@@ -63,11 +64,30 @@ export default function AdminReports() {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   const generatePDF = async () => {
-    if (!data || !window.jspdf) return;
+    if (!data) return;
+    
+    // Check if libraries are loaded
+    const jsPDFLib = window.jspdf?.jsPDF || window.jsPDF;
+    if (!jsPDFLib) {
+      alert('PDF libraries are still loading. Please wait a few seconds and try again.');
+      return;
+    }
+
     setIsGeneratingPDF(true);
 
     try {
-      const doc = new window.jspdf.jsPDF();
+      // Ensure jspdf-autotable can find jsPDF
+      if (window.jspdf && !window.jsPDF) {
+        window.jsPDF = window.jspdf.jsPDF;
+      }
+
+      const doc = new jsPDFLib();
+      
+      // Verify autoTable is available
+      if (typeof (doc as any).autoTable !== 'function') {
+        throw new Error('PDF Table plugin not initialized. Please refresh and try again.');
+      }
+
       const pageWidth = doc.internal.pageSize.getWidth();
 
       // Header
@@ -325,11 +345,11 @@ export default function AdminReports() {
     
     <Script 
       src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" 
-      strategy="afterInteractive" 
+      strategy="lazyOnload" 
     />
     <Script 
       src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js" 
-      strategy="afterInteractive" 
+      strategy="lazyOnload" 
     />
   </>
   );
