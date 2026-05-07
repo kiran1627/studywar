@@ -1,6 +1,7 @@
 const express = require('express');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
+const { sendNotification } = require('../config/firebase');
 const router = express.Router();
 
 /* ─── Module order for sequential unlock ─── */
@@ -211,6 +212,17 @@ router.post('/update', authMiddleware, async (req, res) => {
     user.markModified('instituteProgress');
     await user.save();
 
+    // Send XP Push Notification if applicable
+    if (xpAwarded > 0 && user.fcmToken) {
+      // Background async call
+      sendNotification(
+        user.fcmToken,
+        'XP Earned! 🎉',
+        `You just earned ${xpAwarded} XP for your institute progress! Keep it up.`,
+        { type: 'xp_reward', xp: String(xpAwarded) }
+      ).catch(err => console.error('Error sending XP push:', err));
+    }
+
     // Build response
     const completedDaysObj = {};
     progress.completedDays.forEach((val, key) => { completedDaysObj[key] = val; });
@@ -315,6 +327,16 @@ router.post('/sync', authMiddleware, async (req, res) => {
 
     user.markModified('instituteProgress');
     await user.save();
+
+    // Send XP Push Notification if applicable
+    if (xpDiff > 0 && user.fcmToken) {
+      sendNotification(
+        user.fcmToken,
+        'Progress Saved! 🎉',
+        `You earned ${xpDiff} XP from your latest progress.`,
+        { type: 'xp_reward', xp: String(xpDiff) }
+      ).catch(err => console.error('Error sending XP push:', err));
+    }
 
     // Prepare response maps
     const completedDaysObj = {};

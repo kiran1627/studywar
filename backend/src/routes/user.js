@@ -2,6 +2,7 @@ const express = require('express');
 const User = require('../models/User');
 const Task = require('../models/Task');
 const authMiddleware = require('../middleware/auth');
+const { sendNotification } = require('../config/firebase');
 const router = express.Router();
 
 const calculateSessionScore = (sessionType, problems, currentStreak) => {
@@ -53,6 +54,15 @@ router.put('/complete-session', authMiddleware, async (req, res) => {
     user.streak = newStreak;
     user.lastActiveDate = today;
     await user.save();
+
+    if (earnedScore > 0 && user.fcmToken) {
+      sendNotification(
+        user.fcmToken,
+        'Session Completed! 🚀',
+        `You earned ${earnedScore} points for your ${sessionType} session! Streak: ${newStreak}🔥`,
+        { type: 'session_reward', score: String(earnedScore) }
+      ).catch(err => console.error('Error sending session push:', err));
+    }
 
     const io = req.app.get('io');
     if (io) {
@@ -151,6 +161,25 @@ router.get('/friends/leaderboard', authMiddleware, async (req, res) => {
     leaderboard.sort((a, b) => (b.xp || 0) - (a.xp || 0));
     res.json(leaderboard);
   } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Save FCM Token
+router.post('/fcm-token', authMiddleware, async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ message: 'Token is required' });
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.fcmToken = token;
+    await user.save();
+
+    res.json({ message: 'FCM token saved successfully' });
+  } catch (error) {
+    console.error('FCM token save error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

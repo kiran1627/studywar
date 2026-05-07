@@ -9,6 +9,8 @@ const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
 const passport = require('./config/passport');
 const initSocket = require('./socket');
+const { initFirebaseAdmin } = require('./config/firebase');
+const { initCronJobs } = require('./cron/notifications');
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
@@ -73,6 +75,8 @@ const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   await connectDB();
+  initFirebaseAdmin();
+  initCronJobs();
   server.listen(PORT, () => {
     console.log(`🚀 StudyWar backend running on port ${PORT}`);
   });

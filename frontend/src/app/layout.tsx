@@ -4,6 +4,8 @@ import { AuthProvider } from '@/context/AuthContext';
 import CapacitorSetup from '@/components/CapacitorSetup';
 import MobileNav from '@/components/MobileNav';
 
+import NotificationSetup from '@/components/NotificationSetup';
+
 export const metadata: Metadata = {
   title: 'StudyWar 🚀 | Gamified Coding Habit Tracker',
   description: 'Level up your coding skills with StudyWar - a gamified habit tracker with real-time leaderboard, streaks, and daily challenges.',
@@ -32,6 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-dark-900 text-white antialiased">
         <CapacitorSetup />
         <AuthProvider>
+          <NotificationSetup />
           <div className="pb-16 md:pb-0">
             {children}
           </div>

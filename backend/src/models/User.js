@@ -33,6 +33,7 @@ const userSchema = new mongoose.Schema(
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     instituteProgress: { type: instituteProgressSchema, default: () => ({}) },
+    fcmToken: { type: String, default: null },
   },
   { timestamps: true }
 );
