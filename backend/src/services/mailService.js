@@ -1,21 +1,19 @@
 const nodemailer = require('nodemailer');
 
-// Configure Gmail transporter with STARTTLS and permissive TLS settings
+// Final attempt: Use Nodemailer's optimized 'gmail' service with pooling and long timeouts
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false, // Use STARTTLS
+  service: 'gmail',
+  pool: true,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
   tls: {
-    // Do not fail on invalid certificates (helps in some cloud environments)
     rejectUnauthorized: false,
   },
-  connectionTimeout: 15000, // 15 seconds
-  greetingTimeout: 15000,
-  socketTimeout: 15000,
+  connectionTimeout: 30000, // 30 seconds
+  greetingTimeout: 30000,
+  socketTimeout: 30000,
 });
 
 /**
