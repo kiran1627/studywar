@@ -1,17 +1,17 @@
 const axios = require('axios');
 
 /**
- * Send a performance warning email to a student via Resend HTTP API
- * (Bypasses SMTP port blocks on Render/Vercel)
+ * Send a performance warning email to a student via Brevo HTTP API
+ * (Bypasses SMTP port blocks and doesn't require a custom domain)
  * @param {string} toEmail - Student's Gmail
  * @param {string} userName - Student's Name
  */
 const sendWarningMail = async (toEmail, userName) => {
-  const RESEND_API_KEY = process.env.RESEND_API_KEY;
-  const EMAIL_FROM = process.env.EMAIL_FROM || 'onboarding@resend.dev';
+  const BREVO_API_KEY = process.env.BREVO_API_KEY;
+  const EMAIL_FROM = process.env.EMAIL_FROM || 'kiranbabub18@gmail.com';
 
-  if (!RESEND_API_KEY) {
-    throw new Error('RESEND_API_KEY is missing in environment variables');
+  if (!BREVO_API_KEY) {
+    throw new Error('BREVO_API_KEY is missing in environment variables');
   }
 
   const emailHtml = `
@@ -45,27 +45,27 @@ const sendWarningMail = async (toEmail, userName) => {
 
   try {
     const response = await axios.post(
-      'https://api.resend.com/emails',
+      'https://api.brevo.com/v3/smtp/email',
       {
-        from: `StudyWar <${EMAIL_FROM}>`,
-        to: toEmail,
+        sender: { name: 'StudyWar', email: EMAIL_FROM },
+        to: [{ email: toEmail, name: userName }],
         subject: 'StudyWar Performance Warning',
-        html: emailHtml,
+        htmlContent: emailHtml,
       },
       {
         headers: {
-          Authorization: `Bearer ${RESEND_API_KEY}`,
+          'api-key': BREVO_API_KEY,
           'Content-Type': 'application/json',
         },
       }
     );
 
-    console.log('Warning email sent via Resend:', response.data);
-    return { success: true, message: 'Email sent successfully via Resend' };
+    console.log('Warning email sent via Brevo:', response.data);
+    return { success: true, message: 'Email sent successfully via Brevo' };
   } catch (error) {
-    console.error('Resend API Error:', error.response?.data || error.message);
+    console.error('Brevo API Error:', error.response?.data || error.message);
     const errorDetail = error.response?.data?.message || error.message;
-    throw new Error(`Resend Error: ${errorDetail}`);
+    throw new Error(`Brevo Error: ${errorDetail}`);
   }
 };
 
