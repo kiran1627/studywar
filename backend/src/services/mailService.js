@@ -55,8 +55,10 @@ const sendWarningMail = async (toEmail, userName) => {
     console.log('Warning email sent: ' + info.response);
     return { success: true, message: 'Email sent successfully' };
   } catch (error) {
-    console.error('Email sending failed:', error);
-    throw new Error('SMTP authentication failure or invalid email');
+    console.error('Email sending failed details:', error);
+    // Return a more descriptive error message if possible
+    const errorMessage = error.response || error.message || 'SMTP authentication failure or invalid email';
+    throw new Error(`Mail Error: ${errorMessage}`);
   }
 };
 
