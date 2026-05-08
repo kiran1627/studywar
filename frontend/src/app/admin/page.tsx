@@ -9,6 +9,8 @@ import AdminUserTable from '@/components/admin/AdminUserTable';
 import AdminAnalytics from '@/components/admin/AdminAnalytics';
 import AdminLeaderboard from '@/components/admin/AdminLeaderboard';
 import AdminReports from '@/components/admin/AdminReports';
+import AdminModuleManagement from '@/components/admin/AdminModuleManagement';
+import AdminNotificationControl from '@/components/admin/AdminNotificationControl';
 import api from '@/lib/api';
 
 interface AdminUser {
@@ -49,7 +51,7 @@ interface Analytics {
   }[];
 }
 
-type Tab = 'users' | 'analytics' | 'leaderboard' | 'reports';
+type Tab = 'users' | 'analytics' | 'leaderboard' | 'reports' | 'modules' | 'notifications';
 
 export default function AdminPage() {
   const { user, loading } = useAuth();
@@ -100,6 +102,8 @@ export default function AdminPage() {
 
   const tabs: { key: Tab; label: string; icon: string }[] = [
     { key: 'users', label: 'Users', icon: '👥' },
+    { key: 'modules', label: 'Curriculum', icon: '📚' },
+    { key: 'notifications', label: 'Alerts', icon: '🔔' },
     { key: 'analytics', label: 'Analytics', icon: '📊' },
     { key: 'reports', label: 'Reports', icon: '📄' },
     { key: 'leaderboard', label: 'Leaderboard', icon: '🏆' },
@@ -129,7 +133,7 @@ export default function AdminPage() {
             </h1>
           </div>
           <p className="text-sm text-gray-500 ml-12">
-            Manage users, track progress, and view platform analytics
+            Complete platform control center for StudyWar
           </p>
         </motion.div>
 
@@ -195,6 +199,8 @@ export default function AdminPage() {
         ) : (
           <>
             {activeTab === 'users' && <AdminUserTable users={users} onUpdate={fetchData} />}
+            {activeTab === 'modules' && <AdminModuleManagement />}
+            {activeTab === 'notifications' && <AdminNotificationControl />}
             {activeTab === 'analytics' && analytics && <AdminAnalytics analytics={analytics} />}
             {activeTab === 'reports' && <AdminReports />}
             {activeTab === 'leaderboard' && <AdminLeaderboard users={users} />}

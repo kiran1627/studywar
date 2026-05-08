@@ -57,7 +57,7 @@ export const useNotifications = () => {
 
     const sendTokenToBackend = async (token: string) => {
       try {
-        const auth = localStorage.getItem('token'); // assuming standard token auth
+        const auth = localStorage.getItem('studywar_token');
         if (!auth) return;
 
         // Using fetch to avoid dependency on specific api wrapper if it doesn't match
@@ -77,7 +77,7 @@ export const useNotifications = () => {
 
     // Register after a slight delay to ensure everything is loaded, or trigger on login
     // Here we register on mount if user is logged in
-    const isAuth = !!localStorage.getItem('token');
+    const isAuth = !!localStorage.getItem('studywar_token');
     if (isAuth) {
       registerNotifications();
     }

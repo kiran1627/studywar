@@ -1,28 +1,40 @@
 const express = require('express');
 const User = require('../models/User');
 const Task = require('../models/Task');
+const Module = require('../models/Module');
 const authMiddleware = require('../middleware/auth');
 const adminMiddleware = require('../middleware/admin');
+const { sendNotification } = require('../config/firebase');
 const router = express.Router();
 
 /* All routes require auth + admin */
 router.use(authMiddleware);
 router.use(adminMiddleware);
 
-/* ─── Module metadata for analytics ─── */
-const MODULE_META = [
-  { id: 'data-foundations', title: 'Data Foundations', days: 3 },
-  { id: 'machine-learning', title: 'Machine Learning', days: 3 },
-  { id: 'applied-ai', title: 'Applied AI', days: 2 },
-  { id: 'deep-learning', title: 'Deep Learning', days: 3 },
-  { id: 'generative-ai', title: 'Generative AI', days: 2 },
-  { id: 'langchain', title: 'LangChain', days: 2 },
-  { id: 'agents', title: 'Agents', days: 2 },
-  { id: 'multi-agent', title: 'Multi-Agent Systems', days: 2 },
-  { id: 'backend', title: 'Backend', days: 2 },
-  { id: 'app-development', title: 'App Development', days: 2 },
-];
-const TOTAL_DAYS = 23;
+/* ─── Helper to get modules ─── */
+const getModules = async () => {
+  const modules = await Module.find().sort({ order: 1 });
+  if (modules.length > 0) return modules;
+  
+  // Fallback to hardcoded if DB is empty
+  return [
+    { id: 'data-foundations', title: 'Data Foundations', days: 3 },
+    { id: 'machine-learning', title: 'Machine Learning', days: 3 },
+    { id: 'applied-ai', title: 'Applied AI', days: 2 },
+    { id: 'deep-learning', title: 'Deep Learning', days: 3 },
+    { id: 'generative-ai', title: 'Generative AI', days: 2 },
+    { id: 'langchain', title: 'LangChain', days: 2 },
+    { id: 'agents', title: 'Agents', days: 2 },
+    { id: 'multi-agent', title: 'Multi-Agent Systems', days: 2 },
+    { id: 'backend', title: 'Backend', days: 2 },
+    { id: 'app-development', title: 'App Development', days: 2 },
+  ];
+};
+
+const getStats = async (modules) => {
+  const totalDays = modules.reduce((acc, m) => acc + m.days, 0);
+  return { totalDays, totalModules: modules.length };
+};
 
 /* ═══════════════════════════════════════════
    GET /api/admin/users
@@ -34,6 +46,9 @@ router.get('/users', async (req, res) => {
       .select('name email picture score streak xp level role lastActiveDate instituteProgress createdAt')
       .sort({ createdAt: -1 });
 
+    const modules = await getModules();
+    const { totalDays, totalModules } = await getStats(modules);
+
     const result = users.map((u) => {
       const p = u.instituteProgress || {};
       let completedCount = 0;
@@ -41,7 +56,7 @@ router.get('/users', async (req, res) => {
       if (completedDays.forEach) {
         completedDays.forEach((days) => { completedCount += (days || []).length; });
       }
-      const modulesCompleted = MODULE_META.filter((m) => {
+      const modulesCompleted = modules.filter((m) => {
         const days = completedDays instanceof Map ? completedDays.get(m.id) : (completedDays[m.id] || []);
         return (days || []).length === m.days;
       }).length;
@@ -62,10 +77,10 @@ router.get('/users', async (req, res) => {
           xp: p.xp || 0,
           currentDay: p.currentDay || 1,
           completedDays: completedCount,
-          totalDays: TOTAL_DAYS,
+          totalDays: totalDays,
           modulesCompleted,
-          totalModules: MODULE_META.length,
-          progress: Math.round((completedCount / TOTAL_DAYS) * 100),
+          totalModules: totalModules,
+          progress: totalDays > 0 ? Math.round((completedCount / totalDays) * 100) : 0,
         },
       };
     });
@@ -140,21 +155,19 @@ router.post('/users/:id/modules', async (req, res) => {
     if (!user.instituteProgress.completedDays) user.instituteProgress.completedDays = new Map();
     if (!user.instituteProgress.unlockedModules) user.instituteProgress.unlockedModules = ['data-foundations'];
 
+    const modules = await getModules();
     const completedDaysMap = user.instituteProgress.completedDays instanceof Map
       ? user.instituteProgress.completedDays
       : new Map(Object.entries(user.instituteProgress.completedDays));
 
     // Update completed days for each module
-    MODULE_META.forEach((m) => {
+    modules.forEach((m) => {
       if (completedModules.includes(m.id)) {
         // Mark all days complete
         const days = [];
         for (let i = 1; i <= m.days; i++) days.push(i);
         completedDaysMap.set(m.id, days);
       } else {
-        // If they had it completed, should we clear it entirely? 
-        // We'll only clear if it was fully complete or if the admin unchecked it.
-        // To be safe, if it's not in completedModules, we clear it.
         completedDaysMap.set(m.id, []);
       }
     });
@@ -162,16 +175,16 @@ router.post('/users/:id/modules', async (req, res) => {
     user.instituteProgress.completedDays = completedDaysMap;
 
     // Recalculate unlocked modules based on completed ones
-    const newUnlocked = ['data-foundations'];
-    for (let i = 0; i < MODULE_META.length - 1; i++) {
-      if (completedModules.includes(MODULE_META[i].id)) {
-        if (!newUnlocked.includes(MODULE_META[i + 1].id)) {
-          newUnlocked.push(MODULE_META[i + 1].id);
+    const newUnlocked = [modules[0]?.id || 'data-foundations'];
+    for (let i = 0; i < modules.length - 1; i++) {
+      if (completedModules.includes(modules[i].id)) {
+        if (!newUnlocked.includes(modules[i + 1].id)) {
+          newUnlocked.push(modules[i + 1].id);
         }
       }
     }
     
-    // Preserve any existing unlocked modules that they might have unlocked manually
+    // Preserve any existing unlocked modules
     user.instituteProgress.unlockedModules.forEach(id => {
       if (!newUnlocked.includes(id)) newUnlocked.push(id);
     });
@@ -257,6 +270,30 @@ router.delete('/users/:id', async (req, res) => {
 });
 
 /* ═══════════════════════════════════════════
+   PATCH /api/admin/users/:id
+   Update user stats directly
+   ═══════════════════════════════════════════ */
+router.patch('/users/:id', async (req, res) => {
+  try {
+    const { name, xp, streak, level, role } = req.body;
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (name !== undefined) user.name = name;
+    if (xp !== undefined) user.xp = xp;
+    if (streak !== undefined) user.streak = streak;
+    if (level !== undefined) user.level = level;
+    if (role !== undefined) user.role = role;
+
+    await user.save();
+    res.json({ message: 'User updated successfully', user });
+  } catch (error) {
+    console.error('Admin patch user error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/* ═══════════════════════════════════════════
    GET /api/admin/analytics
    Platform-wide analytics
    ═══════════════════════════════════════════ */
@@ -271,9 +308,12 @@ router.get('/analytics', async (req, res) => {
     let activeToday = 0;
     let totalInstituteXP = 0;
 
+    const modules = await getModules();
+    const { totalDays } = await getStats(modules);
+
     // Per-module completion counts
     const moduleCompletion = {};
-    MODULE_META.forEach((m) => { moduleCompletion[m.id] = 0; });
+    modules.forEach((m) => { moduleCompletion[m.id] = 0; });
 
     users.forEach((u) => {
       totalXP += u.xp || 0;
@@ -284,7 +324,7 @@ router.get('/analytics', async (req, res) => {
       totalInstituteXP += p.xp || 0;
 
       const completedDays = p.completedDays || new Map();
-      MODULE_META.forEach((m) => {
+      modules.forEach((m) => {
         const days = completedDays instanceof Map ? completedDays.get(m.id) : (completedDays[m.id] || []);
         if ((days || []).length === m.days) {
           moduleCompletion[m.id]++;
@@ -292,7 +332,7 @@ router.get('/analytics', async (req, res) => {
       });
     });
 
-    const moduleAnalytics = MODULE_META.map((m) => ({
+    const moduleAnalytics = modules.map((m) => ({
       id: m.id,
       title: m.title,
       days: m.days,
@@ -325,6 +365,9 @@ router.get('/leaderboard', async (req, res) => {
       .sort({ xp: -1 })
       .limit(50);
 
+    const modules = await getModules();
+    const { totalDays } = await getStats(modules);
+
     const result = users.map((u) => {
       const p = u.instituteProgress || {};
       let completedCount = 0;
@@ -341,7 +384,7 @@ router.get('/leaderboard', async (req, res) => {
         streak: u.streak,
         xp: u.xp || 0,
         instituteXP: p.xp || 0,
-        progress: Math.round((completedCount / TOTAL_DAYS) * 100),
+        progress: totalDays > 0 ? Math.round((completedCount / totalDays) * 100) : 0,
       };
     });
 
@@ -382,6 +425,9 @@ router.get('/reports', async (req, res) => {
       tasksByUser[uid].push(t);
     });
 
+    const modules = await getModules();
+    const { totalDays, totalModules } = await getStats(modules);
+
     const userReports = users.map(u => {
       const uid = u._id.toString();
       const tasks = tasksByUser[uid] || [];
@@ -416,7 +462,7 @@ router.get('/reports', async (req, res) => {
         Object.values(completedDays).forEach((days) => { instituteCompleted += (days || []).length; });
       }
 
-      const modulesCompleted = MODULE_META.filter(m => {
+      const modulesCompleted = modules.filter(m => {
         let days;
         if (completedDays instanceof Map) {
           days = completedDays.get(m.id) || [];
@@ -476,10 +522,10 @@ router.get('/reports', async (req, res) => {
         institute: {
           xp: p.xp || 0,
           completedDays: instituteCompleted,
-          totalDays: TOTAL_DAYS,
+          totalDays: totalDays,
           modulesCompleted,
-          totalModules: MODULE_META.length,
-          progress: Math.round((instituteCompleted / TOTAL_DAYS) * 100),
+          totalModules: totalModules,
+          progress: totalDays > 0 ? Math.round((instituteCompleted / totalDays) * 100) : 0,
         },
         dailyActivity,
       };
@@ -510,6 +556,75 @@ router.get('/reports', async (req, res) => {
     });
   } catch (error) {
     console.error('Admin reports error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/* ═══════════════════════════════════════════
+   POST /api/admin/notifications
+   Send broadcast notification
+   ═══════════════════════════════════════════ */
+router.post('/notifications', async (req, res) => {
+  try {
+    const { title, body, target } = req.body;
+    if (!title || !body) return res.status(400).json({ message: 'Title and body required' });
+
+    let users = [];
+    if (target === 'all') {
+      users = await User.find({ fcmToken: { $ne: null } }).select('fcmToken');
+    } else {
+      // Add logic for specific user groups if needed
+      users = await User.find({ fcmToken: { $ne: null } }).select('fcmToken');
+    }
+
+    const tokens = users.map(u => u.fcmToken).filter(t => !!t);
+    if (tokens.length === 0) return res.json({ message: 'No users with registered devices found' });
+
+    await sendNotification(tokens, title, body);
+    res.json({ message: `Notification sent to ${tokens.length} devices` });
+  } catch (error) {
+    console.error('Admin notification error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/* ═══════════════════════════════════════════
+   MODULE MANAGEMENT
+   ═══════════════════════════════════════════ */
+
+router.get('/modules', async (req, res) => {
+  try {
+    const modules = await Module.find().sort({ order: 1 });
+    res.json(modules);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.post('/modules', async (req, res) => {
+  try {
+    const mod = new Module(req.body);
+    await mod.save();
+    res.status(201).json(mod);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.patch('/modules/:id', async (req, res) => {
+  try {
+    const mod = await Module.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(mod);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.delete('/modules/:id', async (req, res) => {
+  try {
+    await Module.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Module deleted' });
+  } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
 });

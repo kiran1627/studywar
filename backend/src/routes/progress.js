@@ -1,35 +1,25 @@
 const express = require('express');
 const User = require('../models/User');
+const Module = require('../models/Module');
 const authMiddleware = require('../middleware/auth');
 const { sendNotification } = require('../config/firebase');
 const router = express.Router();
 
-/* ─── Module order for sequential unlock ─── */
-const MODULE_ORDER = [
-  'data-foundations',
-  'machine-learning',
-  'applied-ai',
-  'deep-learning',
-  'generative-ai',
-  'langchain',
-  'agents',
-  'multi-agent',
-  'backend',
-  'app-development',
-];
-
-/* ─── Module → day count mapping ─── */
-const MODULE_DAY_COUNT = {
-  'data-foundations': 3,
-  'machine-learning': 3,
-  'applied-ai': 2,
-  'deep-learning': 3,
-  'generative-ai': 2,
-  'langchain': 2,
-  'agents': 2,
-  'multi-agent': 2,
-  'backend': 2,
-  'app-development': 2,
+/* ─── Helpers to get dynamic curriculum ─── */
+const getCurriculum = async () => {
+  const modules = await Module.find().sort({ order: 1 });
+  if (modules.length > 0) {
+    const order = modules.map(m => m.id);
+    const dayCounts = {};
+    modules.forEach(m => { dayCounts[m.id] = m.days; });
+    const totalDays = modules.reduce((acc, m) => acc + m.days, 0);
+    return { order, dayCounts, totalDays };
+  }
+  
+  // Fallback
+  const fallbackOrder = ['data-foundations', 'machine-learning', 'applied-ai', 'deep-learning', 'generative-ai', 'langchain', 'agents', 'multi-agent', 'backend', 'app-development'];
+  const fallbackDayCounts = { 'data-foundations': 3, 'machine-learning': 3, 'applied-ai': 2, 'deep-learning': 3, 'generative-ai': 2, 'langchain': 2, 'agents': 2, 'multi-agent': 2, 'backend': 2, 'app-development': 2 };
+  return { order: fallbackOrder, dayCounts: fallbackDayCounts, totalDays: 23 };
 };
 
 const XP_PER_DAY = 25;
@@ -100,16 +90,18 @@ router.post('/update', authMiddleware, async (req, res) => {
   try {
     const { moduleId, day, block } = req.body;
 
+    const { order, dayCounts } = await getCurriculum();
+
     if (!moduleId || !day) {
       return res.status(400).json({ message: 'moduleId and day are required' });
     }
 
-    if (!MODULE_DAY_COUNT[moduleId]) {
+    if (!dayCounts[moduleId]) {
       return res.status(400).json({ message: 'Invalid moduleId' });
     }
 
     const dayNum = parseInt(day);
-    if (isNaN(dayNum) || dayNum < 1 || dayNum > MODULE_DAY_COUNT[moduleId]) {
+    if (isNaN(dayNum) || dayNum < 1 || dayNum > dayCounts[moduleId]) {
       return res.status(400).json({ message: 'Invalid day number' });
     }
 
@@ -188,11 +180,11 @@ router.post('/update', authMiddleware, async (req, res) => {
     progress.completedDays.set(moduleId, moduleDays);
 
     // Check if module is fully completed → unlock next
-    const totalDaysInModule = MODULE_DAY_COUNT[moduleId];
+    const totalDaysInModule = dayCounts[moduleId];
     if (moduleDays.length === totalDaysInModule) {
-      const currentIndex = MODULE_ORDER.indexOf(moduleId);
-      if (currentIndex >= 0 && currentIndex < MODULE_ORDER.length - 1) {
-        const nextModule = MODULE_ORDER[currentIndex + 1];
+      const currentIndex = order.indexOf(moduleId);
+      if (currentIndex >= 0 && currentIndex < order.length - 1) {
+        const nextModule = order[currentIndex + 1];
         if (!progress.unlockedModules.includes(nextModule)) {
           progress.unlockedModules.push(nextModule);
           newlyUnlocked = nextModule;
@@ -207,20 +199,29 @@ router.post('/update', authMiddleware, async (req, res) => {
         totalCompleted += (days || []).length;
       });
     }
-    progress.currentDay = Math.min(totalCompleted + 1, 23);
+    const { totalDays: finalTotalDays } = await getCurriculum();
+    progress.currentDay = Math.min(totalCompleted + 1, finalTotalDays);
 
     user.markModified('instituteProgress');
     await user.save();
 
     // Send XP Push Notification if applicable
-    if (xpAwarded > 0 && user.fcmToken) {
-      // Background async call
-      sendNotification(
-        user.fcmToken,
-        'XP Earned! 🎉',
-        `You just earned ${xpAwarded} XP for your institute progress! Keep it up.`,
-        { type: 'xp_reward', xp: String(xpAwarded) }
-      ).catch(err => console.error('Error sending XP push:', err));
+    if (user.fcmToken) {
+      if (newlyUnlocked) {
+        sendNotification(
+          user.fcmToken,
+          'New Module Unlocked! 🎓',
+          `Congratulations! You've unlocked the "${newlyUnlocked}" module.`,
+          { type: 'module_unlock', module: newlyUnlocked }
+        ).catch(err => console.error('Error sending unlock push:', err));
+      } else if (xpAwarded > 0) {
+        sendNotification(
+          user.fcmToken,
+          'XP Earned! 🎉',
+          `You earned ${xpAwarded} XP in "${moduleId}". Keep it up!`,
+          { type: 'xp_reward', xp: String(xpAwarded) }
+        ).catch(err => console.error('Error sending XP push:', err));
+      }
     }
 
     // Build response
@@ -273,6 +274,8 @@ router.post('/sync', authMiddleware, async (req, res) => {
     const progress = user.instituteProgress;
     const oldInstituteXP = progress.xp || 0;
 
+    const { order, dayCounts, totalDays } = await getCurriculum();
+
     // Convert requested plain objects back to Maps
     progress.completedDays = new Map(Object.entries(completedDays));
     progress.dayProgress = new Map(Object.entries(dayProgress));
@@ -281,7 +284,7 @@ router.post('/sync', authMiddleware, async (req, res) => {
     let totalCompleted = 0;
     progress.completedDays.forEach((days, moduleId) => {
       // Filter out invalid days just in case
-      const validDays = (days || []).filter(d => d >= 1 && d <= (MODULE_DAY_COUNT[moduleId] || 0));
+      const validDays = (days || []).filter(d => d >= 1 && d <= (dayCounts[moduleId] || 0));
       progress.completedDays.set(moduleId, validDays);
       totalCompleted += validDays.length;
     });
@@ -292,22 +295,20 @@ router.post('/sync', authMiddleware, async (req, res) => {
 
     progress.xp = newInstituteXP;
     user.xp = Math.max(0, (user.xp || 0) + xpDiff);
-    progress.currentDay = Math.min(totalCompleted + 1, Object.values(MODULE_DAY_COUNT).reduce((a,b)=>a+b, 0));
+    progress.currentDay = Math.min(totalCompleted + 1, totalDays);
 
     // Recalculate unlocked modules based on order
     let newlyUnlocked = null;
-    const newUnlockedList = ['data-foundations'];
+    const newUnlockedList = [order[0] || 'data-foundations'];
     
-    for (let i = 0; i < MODULE_ORDER.length - 1; i++) {
-      const currentMod = MODULE_ORDER[i];
-      const nextMod = MODULE_ORDER[i + 1];
+    for (let i = 0; i < order.length - 1; i++) {
+      const currentMod = order[i];
+      const nextMod = order[i + 1];
       const completedArr = progress.completedDays.get(currentMod) || [];
       
-      if (completedArr.length === MODULE_DAY_COUNT[currentMod]) {
+      if (completedArr.length === dayCounts[currentMod]) {
         newUnlockedList.push(nextMod);
       } else {
-        // If they haven't completed this one, they don't unlock anything further automatically
-        // BUT we should preserve whatever they already had unlocked manually (e.g. by an admin)
         break;
       }
     }
@@ -329,13 +330,22 @@ router.post('/sync', authMiddleware, async (req, res) => {
     await user.save();
 
     // Send XP Push Notification if applicable
-    if (xpDiff > 0 && user.fcmToken) {
-      sendNotification(
-        user.fcmToken,
-        'Progress Saved! 🎉',
-        `You earned ${xpDiff} XP from your latest progress.`,
-        { type: 'xp_reward', xp: String(xpDiff) }
-      ).catch(err => console.error('Error sending XP push:', err));
+    if (user.fcmToken) {
+      if (newlyUnlocked) {
+        sendNotification(
+          user.fcmToken,
+          'New Modules Unlocked! 🚀',
+          `Progress synced! You've unlocked the "${newlyUnlocked}" module.`,
+          { type: 'module_unlock', module: newlyUnlocked }
+        ).catch(err => console.error('Error sending unlock push:', err));
+      } else if (xpDiff > 0) {
+        sendNotification(
+          user.fcmToken,
+          'Progress Saved! 🎉',
+          `You earned ${xpDiff} XP from your latest progress.`,
+          { type: 'xp_reward', xp: String(xpDiff) }
+        ).catch(err => console.error('Error sending XP push:', err));
+      }
     }
 
     // Prepare response maps

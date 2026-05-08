@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/lib/api';
 import { MODULES } from '@/lib/instituteData';
+import AdminEditUserModal from './AdminEditUserModal';
 
 interface AdminUser {
   _id: string;
@@ -13,6 +14,7 @@ interface AdminUser {
   score: number;
   streak: number;
   xp: number;
+  level: number;
   role: string;
   lastActiveDate: string | null;
   createdAt: string;
@@ -38,6 +40,7 @@ export default function AdminUserTable({ users, onUpdate }: { users: AdminUser[]
   const [selectedModules, setSelectedModules] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(false);
+  const [profileToEdit, setProfileToEdit] = useState<AdminUser | null>(null);
 
   // Add User Modal State
   const [showAddModal, setShowAddModal] = useState(false);
@@ -310,10 +313,16 @@ export default function AdminUserTable({ users, onUpdate }: { users: AdminUser[]
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button 
+                          onClick={() => setProfileToEdit(u)}
+                          className="px-3 py-1 bg-neon-blue/10 text-neon-blue text-xs font-bold rounded-lg border border-neon-blue/20 hover:bg-neon-blue hover:text-white transition-all cursor-pointer"
+                        >
+                          Profile
+                        </button>
+                        <button 
                           onClick={() => openEditModal(u)}
                           className="px-3 py-1 bg-neon-purple/10 text-neon-purple text-xs font-bold rounded-lg border border-neon-purple/20 hover:bg-neon-purple hover:text-white transition-all cursor-pointer"
                         >
-                          Edit
+                          Modules
                         </button>
                         <button 
                           onClick={() => setDeletingUser(u)}
@@ -592,6 +601,16 @@ export default function AdminUserTable({ users, onUpdate }: { users: AdminUser[]
           </>
         )}
       </AnimatePresence>
+
+      {/* ═══ Edit Profile Modal ═══ */}
+      {profileToEdit && (
+        <AdminEditUserModal
+          user={profileToEdit}
+          isOpen={!!profileToEdit}
+          onClose={() => setProfileToEdit(null)}
+          onUpdate={() => { if (onUpdate) onUpdate(); }}
+        />
+      )}
     </>
   );
 }
