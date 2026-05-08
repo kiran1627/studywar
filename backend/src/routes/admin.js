@@ -629,5 +629,37 @@ router.delete('/modules/:id', async (req, res) => {
   }
 });
 
+const { sendWarningMail } = require('../services/mailService');
+
+/* ═══════════════════════════════════════════
+   POST /api/admin/send-warning
+   Send warning email to a user
+   ═══════════════════════════════════════════ */
+router.post('/send-warning', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (!user.email) {
+      return res.status(400).json({ message: 'User does not have a registered email' });
+    }
+
+    await sendWarningMail(user.email, user.name);
+
+    res.json({ message: 'Warning email sent successfully' });
+  } catch (error) {
+    console.error('Send warning error:', error);
+    res.status(500).json({ message: error.message || 'Failed to send warning email' });
+  }
+});
+
 module.exports = router;
+
 

@@ -54,6 +54,9 @@ export default function AdminUserTable({ users, onUpdate }: { users: AdminUser[]
   const [deletingUser, setDeletingUser] = useState<AdminUser | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Warning System State
+  const [sendingWarning, setSendingWarning] = useState<string | null>(null);
+
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortAsc(!sortAsc);
     else { setSortKey(key); setSortAsc(false); }
@@ -178,6 +181,25 @@ export default function AdminUserTable({ users, onUpdate }: { users: AdminUser[]
       alert(err?.response?.data?.message || 'Failed to delete user');
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  /* ─── Send Warning Email ─── */
+  const handleSendWarning = async (u: AdminUser) => {
+    if (sendingWarning) return;
+    
+    // Confirm first
+    if (!confirm(`Send performance warning email to ${u.name} (${u.email})?`)) return;
+
+    setSendingWarning(u._id);
+    try {
+      const res = await api.post('/api/admin/send-warning', { userId: u._id });
+      alert(res.data.message || 'Warning email sent successfully');
+    } catch (err: any) {
+      console.error('Failed to send warning email', err);
+      alert(err?.response?.data?.message || 'Failed to send warning email');
+    } finally {
+      setSendingWarning(null);
     }
   };
 
@@ -323,6 +345,17 @@ export default function AdminUserTable({ users, onUpdate }: { users: AdminUser[]
                           className="px-3 py-1 bg-neon-purple/10 text-neon-purple text-xs font-bold rounded-lg border border-neon-purple/20 hover:bg-neon-purple hover:text-white transition-all cursor-pointer"
                         >
                           Modules
+                        </button>
+                        <button 
+                          onClick={() => handleSendWarning(u)}
+                          disabled={sendingWarning === u._id}
+                          className={`px-3 py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                            sendingWarning === u._id
+                              ? 'bg-gray-500/10 text-gray-500 border-gray-500/20 cursor-not-allowed'
+                              : 'bg-orange-500/10 text-orange-400 border-orange-500/20 hover:bg-orange-500 hover:text-white'
+                          }`}
+                        >
+                          {sendingWarning === u._id ? 'Sending...' : 'Send Warning'}
                         </button>
                         <button 
                           onClick={() => setDeletingUser(u)}
