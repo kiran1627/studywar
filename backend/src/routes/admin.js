@@ -2,6 +2,13 @@ const express = require('express');
 const User = require('../models/User');
 const Task = require('../models/Task');
 const Module = require('../models/Module');
+const Badge = require('../models/Badge');
+const Assignment = require('../models/Assignment');
+const MockTest = require('../models/MockTest');
+const Announcement = require('../models/Announcement');
+const Batch = require('../models/Batch');
+const Roadmap = require('../models/Roadmap');
+const Certificate = require('../models/Certificate');
 const authMiddleware = require('../middleware/auth');
 const adminMiddleware = require('../middleware/admin');
 const { sendNotification } = require('../config/firebase');
@@ -630,6 +637,157 @@ router.delete('/modules/:id', async (req, res) => {
 });
 
 const { sendWarningMail } = require('../services/mailService');
+
+/* ═══════════════════════════════════════════
+   POST /api/admin/send-warning
+   Send warning email to a user
+   ═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════
+   GET /api/admin/risk-detection
+   Identify struggling students
+   ═══════════════════════════════════════════ */
+router.get('/risk-detection', async (req, res) => {
+  try {
+    const users = await User.find({ role: 'user' }).select('name email streak lastActiveDate xp');
+    const today = new Date();
+    const threeDaysAgo = new Date(today);
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    const threeDaysAgoStr = threeDaysAgo.toISOString().split('T')[0];
+
+    const flaggedUsers = [];
+
+    for (const user of users) {
+      const risks = [];
+      
+      // 1. Inactive for > 3 days
+      if (!user.lastActiveDate || user.lastActiveDate < threeDaysAgoStr) {
+        risks.push('Inactive for more than 3 days');
+      }
+
+      // 2. Lost streak
+      if (user.streak === 0 && user.xp > 100) {
+        risks.push('Recently lost streak');
+      }
+
+      // 3. Low XP gain (Check tasks in last 7 days)
+      const weekTasks = await Task.find({ 
+        userId: user._id, 
+        date: { $gte: new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] } 
+      });
+      
+      if (weekTasks.length === 0 && user.xp > 0) {
+        risks.push('Zero activity in the last 7 days');
+      }
+
+      if (risks.length > 0) {
+        flaggedUsers.push({
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          risks,
+          severity: risks.length > 2 ? 'high' : 'medium'
+        });
+      }
+    }
+
+    res.json(flaggedUsers);
+  } catch (error) {
+    console.error('Risk detection error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/* ═══════════════════════════════════════════
+   BADGE MANAGEMENT
+   ═══════════════════════════════════════════ */
+router.get('/badges', async (req, res) => {
+  const badges = await Badge.find();
+  res.json(badges);
+});
+
+router.post('/badges', async (req, res) => {
+  const badge = new Badge(req.body);
+  await badge.save();
+  res.status(201).json(badge);
+});
+
+/* ═══════════════════════════════════════════
+   ASSIGNMENT SYSTEM
+   ═══════════════════════════════════════════ */
+router.get('/assignments', async (req, res) => {
+  const assignments = await Assignment.find().populate('batch', 'name');
+  res.json(assignments);
+});
+
+router.post('/assignments', async (req, res) => {
+  const assignment = new Assignment(req.body);
+  await assignment.save();
+  res.status(201).json(assignment);
+});
+
+/* ═══════════════════════════════════════════
+   MOCK TESTS
+   ═══════════════════════════════════════════ */
+router.get('/mock-tests', async (req, res) => {
+  const tests = await MockTest.find();
+  res.json(tests);
+});
+
+router.post('/mock-tests', async (req, res) => {
+  const test = new MockTest(req.body);
+  await test.save();
+  res.status(201).json(test);
+});
+
+/* ═══════════════════════════════════════════
+   ANNOUNCEMENTS
+   ═══════════════════════════════════════════ */
+router.get('/announcements', async (req, res) => {
+  const announcements = await Announcement.find().sort({ createdAt: -1 });
+  res.json(announcements);
+});
+
+router.post('/announcements', async (req, res) => {
+  const announcement = new Announcement({ ...req.body, createdBy: req.user._id });
+  await announcement.save();
+  res.status(201).json(announcement);
+});
+
+/* ═══════════════════════════════════════════
+   BATCH MANAGEMENT
+   ═══════════════════════════════════════════ */
+router.get('/batches', async (req, res) => {
+  const batches = await Batch.find().populate('students', 'name email');
+  res.json(batches);
+});
+
+router.post('/batches', async (req, res) => {
+  const batch = new Batch(req.body);
+  await batch.save();
+  res.status(201).json(batch);
+});
+
+/* ═══════════════════════════════════════════
+   ROADMAP BUILDER
+   ═══════════════════════════════════════════ */
+router.get('/roadmaps', async (req, res) => {
+  const roadmaps = await Roadmap.find().populate('steps.moduleId');
+  res.json(roadmaps);
+});
+
+router.post('/roadmaps', async (req, res) => {
+  const roadmap = new Roadmap(req.body);
+  await roadmap.save();
+  res.status(201).json(roadmap);
+});
+
+/* ═══════════════════════════════════════════
+   CERTIFICATES
+   ═══════════════════════════════════════════ */
+router.get('/certificates', async (req, res) => {
+  const certs = await Certificate.find().populate('user', 'name email');
+  res.json(certs);
+});
 
 /* ═══════════════════════════════════════════
    POST /api/admin/send-warning

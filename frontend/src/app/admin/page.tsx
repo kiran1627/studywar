@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
@@ -11,55 +11,42 @@ import AdminLeaderboard from '@/components/admin/AdminLeaderboard';
 import AdminReports from '@/components/admin/AdminReports';
 import AdminModuleManagement from '@/components/admin/AdminModuleManagement';
 import AdminNotificationControl from '@/components/admin/AdminNotificationControl';
+
+// New Modules
+import RiskDetection from '@/components/admin/modules/RiskDetection';
+import BadgeManager from '@/components/admin/modules/BadgeManager';
+import AssignmentSystem from '@/components/admin/modules/AssignmentSystem';
+import RoadmapBuilder from '@/components/admin/modules/RoadmapBuilder';
+import MockTestCreator from '@/components/admin/modules/MockTestCreator';
+import BatchManager from '@/components/admin/modules/BatchManager';
+import Announcements from '@/components/admin/modules/Announcements';
+import AdminCertificates from '@/components/admin/modules/AdminCertificates';
+
 import api from '@/lib/api';
 
-interface AdminUser {
-  _id: string;
-  name: string;
-  email: string;
-  picture: string;
-  score: number;
-  streak: number;
-  xp: number;
-  level: number;
-  role: string;
-  lastActiveDate: string | null;
-  createdAt: string;
-  institute: {
-    xp: number;
-    currentDay: number;
-    completedDays: number;
-    totalDays: number;
-    modulesCompleted: number;
-    totalModules: number;
-    progress: number;
-  };
-}
-
-interface Analytics {
-  totalUsers: number;
-  totalXP: number;
-  totalInstituteXP: number;
-  avgStreak: number;
-  activeToday: number;
-  moduleAnalytics: {
-    id: string;
-    title: string;
-    days: number;
-    completedByUsers: number;
-    completionRate: number;
-  }[];
-}
-
-type Tab = 'users' | 'analytics' | 'leaderboard' | 'reports' | 'modules' | 'notifications';
+type Tab = 
+  | 'dashboard' 
+  | 'users' 
+  | 'batches' 
+  | 'curriculum' 
+  | 'roadmaps' 
+  | 'assignments' 
+  | 'mock-tests' 
+  | 'badges' 
+  | 'announcements' 
+  | 'risk' 
+  | 'reports' 
+  | 'leaderboard'
+  | 'notifications';
 
 export default function AdminPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>('users');
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [users, setUsers] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
   const [dataLoading, setDataLoading] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Auth + role guard
   useEffect(() => {
@@ -67,7 +54,6 @@ export default function AdminPage() {
     if (!loading && user && user.role !== 'admin') router.push('/dashboard');
   }, [user, loading, router]);
 
-  // Fetch data
   const fetchData = async () => {
     try {
       const [usersRes, analyticsRes] = await Promise.all([
@@ -100,113 +86,165 @@ export default function AdminPage() {
     );
   }
 
-  const tabs: { key: Tab; label: string; icon: string }[] = [
-    { key: 'users', label: 'Users', icon: '👥' },
-    { key: 'modules', label: 'Curriculum', icon: '📚' },
-    { key: 'notifications', label: 'Alerts', icon: '🔔' },
-    { key: 'analytics', label: 'Analytics', icon: '📊' },
-    { key: 'reports', label: 'Reports', icon: '📄' },
-    { key: 'leaderboard', label: 'Leaderboard', icon: '🏆' },
+  const menuItems: { key: Tab; label: string; icon: string; group: string }[] = [
+    { key: 'dashboard', label: 'Overview', icon: '📊', group: 'General' },
+    { key: 'users', label: 'User Directory', icon: '👥', group: 'Management' },
+    { key: 'batches', label: 'Student Batches', icon: '🏫', group: 'Management' },
+    { key: 'curriculum', label: 'Curriculum', icon: '📚', group: 'Content' },
+    { key: 'roadmaps', label: 'Roadmap Builder', icon: '🗺️', group: 'Content' },
+    { key: 'assignments', label: 'Assignments', icon: '📝', group: 'Learning' },
+    { key: 'mock-tests', label: 'Mock Tests', icon: '🧪', group: 'Learning' },
+    { key: 'badges', label: 'Badge System', icon: '🏆', group: 'Gamification' },
+    { key: 'announcements', label: 'Announcements', icon: '📢', group: 'Communication' },
+    { key: 'notifications', label: 'Push Alerts', icon: '🔔', group: 'Communication' },
+    { key: 'risk', label: 'Risk Detection', icon: '⚠️', group: 'Analytics' },
+    { key: 'reports', label: 'Platform Reports', icon: '📄', group: 'Analytics' },
+    { key: 'leaderboard', label: 'Leaderboard', icon: '🥇', group: 'Analytics' },
   ];
 
+  const groupedMenu = menuItems.reduce((acc, item) => {
+    if (!acc[item.group]) acc[item.group] = [];
+    acc[item.group].push(item);
+    return acc;
+  }, {} as Record<string, typeof menuItems>);
+
   return (
-    <div className="min-h-screen bg-dark-900">
-      {/* Ambient glows */}
-      <div className="fixed top-0 left-0 w-full h-full pointer-events-none">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-red-500/5 rounded-full blur-[150px]" />
-        <div className="absolute bottom-1/3 left-0 w-96 h-96 bg-neon-purple/5 rounded-full blur-[150px]" />
-      </div>
-
+    <div className="min-h-screen bg-dark-950 flex flex-col">
       <Navbar />
-
-      <main className="relative z-10 pt-20 pb-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+      
+      <div className="flex flex-1 pt-16 overflow-hidden">
+        {/* Sidebar */}
+        <motion.aside 
+          initial={false}
+          animate={{ width: isSidebarOpen ? 260 : 80 }}
+          className="bg-dark-900 border-r border-white/5 flex flex-col z-20 transition-all duration-300 hidden md:flex"
         >
-          <div className="flex items-center gap-3 mb-1">
-            <span className="text-3xl">🛡️</span>
-            <h1 className="text-2xl sm:text-4xl font-black text-white">
-              Admin <span className="neon-text">Portal</span>
-            </h1>
-          </div>
-          <p className="text-sm text-gray-500 ml-12">
-            Complete platform control center for StudyWar
-          </p>
-        </motion.div>
-
-        {/* Quick Stats */}
-        {analytics && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-8"
-          >
-            {[
-              { label: 'Total Users', value: analytics.totalUsers, icon: '👥', color: '#7c3aed' },
-              { label: 'Total XP', value: analytics.totalXP.toLocaleString(), icon: '⚡', color: '#00ff88' },
-              { label: 'Institute XP', value: analytics.totalInstituteXP.toLocaleString(), icon: '🏛️', color: '#00d4ff' },
-              { label: 'Avg Streak', value: `${analytics.avgStreak}d`, icon: '🔥', color: '#f97316' },
-              { label: 'Active Today', value: analytics.activeToday, icon: '🟢', color: '#22c55e' },
-            ].map((stat, i) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.15 + i * 0.05 }}
-                className="glass-card p-3 sm:p-4 text-center"
-              >
-                <span className="text-lg">{stat.icon}</span>
-                <p className="text-lg font-black mt-1" style={{ color: stat.color }}>
-                  {stat.value}
-                </p>
-                <p className="text-[10px] text-gray-500">{stat.label}</p>
-              </motion.div>
+          <div className="p-4 flex-1 overflow-y-auto custom-scrollbar">
+            {Object.entries(groupedMenu).map(([group, items]) => (
+              <div key={group} className="mb-6">
+                {isSidebarOpen && (
+                  <p className="text-[10px] uppercase font-black text-gray-600 mb-2 px-3 tracking-widest">
+                    {group}
+                  </p>
+                )}
+                <div className="space-y-1">
+                  {items.map((item) => (
+                    <button
+                      key={item.key}
+                      onClick={() => setActiveTab(item.key)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all ${
+                        activeTab === item.key
+                          ? 'bg-neon-purple/10 text-neon-purple border border-neon-purple/20'
+                          : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
+                      }`}
+                    >
+                      <span className="text-xl">{item.icon}</span>
+                      {isSidebarOpen && <span className="text-sm font-medium">{item.label}</span>}
+                      {activeTab === item.key && isSidebarOpen && (
+                        <motion.div layoutId="active" className="ml-auto w-1.5 h-1.5 rounded-full bg-neon-purple" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))}
-          </motion.div>
-        )}
+          </div>
+          
+          <button 
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="p-4 border-t border-white/5 text-gray-500 hover:text-white transition-colors"
+          >
+            {isSidebarOpen ? '← Collapse' : '→'}
+          </button>
+        </motion.aside>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
-          {tabs.map((tab) => (
+        {/* Mobile Navigation (Bottom Bar) */}
+        <div className="md:hidden fixed bottom-0 left-0 w-full bg-dark-900 border-t border-white/5 flex justify-around p-2 z-50">
+          {menuItems.slice(0, 5).map((item) => (
             <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
-                activeTab === tab.key
-                  ? 'bg-neon-purple/20 border border-neon-purple/30 text-neon-purple'
-                  : 'bg-dark-800/50 border border-white/5 text-gray-400 hover:text-white hover:border-white/10'
-              }`}
+              key={item.key}
+              onClick={() => setActiveTab(item.key)}
+              className={`flex flex-col items-center p-2 rounded-lg ${activeTab === item.key ? 'text-neon-purple' : 'text-gray-500'}`}
             >
-              <span>{tab.icon}</span>
-              <span>{tab.label}</span>
+              <span className="text-xl">{item.icon}</span>
+              <span className="text-[8px] uppercase font-bold">{item.label.split(' ')[0]}</span>
             </button>
           ))}
+          <button className="flex flex-col items-center p-2 text-gray-500">
+            <span className="text-xl">⚙️</span>
+            <span className="text-[8px] uppercase font-bold">More</span>
+          </button>
         </div>
 
-        {/* Tab Content */}
-        {dataLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-              className="w-8 h-8 border-2 border-neon-purple border-t-transparent rounded-full"
-            />
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto bg-dark-950 p-4 sm:p-8 custom-scrollbar relative">
+          {/* Ambient Background Glows */}
+          <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-neon-purple/5 blur-[120px] pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-red-500/5 blur-[120px] pointer-events-none" />
+
+          <div className="max-w-6xl mx-auto relative z-10 pb-24 md:pb-0">
+            {/* Page Header */}
+            <header className="mb-8">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{menuItems.find(i => i.key === activeTab)?.icon}</span>
+                <h1 className="text-2xl sm:text-3xl font-black text-white">
+                  {menuItems.find(i => i.key === activeTab)?.label}
+                </h1>
+              </div>
+              <p className="text-sm text-gray-500 mt-1">
+                Manage your EdTech ecosystem effectively from this dashboard.
+              </p>
+            </header>
+
+            {/* Content Switcher */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2 }}
+              >
+                {activeTab === 'dashboard' && analytics && <AdminAnalytics analytics={analytics} />}
+                {activeTab === 'users' && <AdminUserTable users={users} onUpdate={fetchData} />}
+                {activeTab === 'batches' && <BatchManager />}
+                {activeTab === 'curriculum' && <AdminModuleManagement />}
+                {activeTab === 'roadmaps' && <RoadmapBuilder />}
+                {activeTab === 'assignments' && <AssignmentSystem />}
+                {activeTab === 'mock-tests' && <MockTestCreator />}
+                {activeTab === 'badges' && <BadgeManager />}
+                {activeTab === 'announcements' && <Announcements />}
+                {activeTab === 'notifications' && <AdminNotificationControl />}
+                {activeTab === 'risk' && <RiskDetection />}
+                {activeTab === 'reports' && <AdminReports />}
+                {activeTab === 'leaderboard' && <AdminLeaderboard users={users} />}
+              </motion.div>
+            </AnimatePresence>
           </div>
-        ) : (
-          <>
-            {activeTab === 'users' && <AdminUserTable users={users} onUpdate={fetchData} />}
-            {activeTab === 'modules' && <AdminModuleManagement />}
-            {activeTab === 'notifications' && <AdminNotificationControl />}
-            {activeTab === 'analytics' && analytics && <AdminAnalytics analytics={analytics} />}
-            {activeTab === 'reports' && <AdminReports />}
-            {activeTab === 'leaderboard' && <AdminLeaderboard users={users} />}
-          </>
-        )}
-      </main>
+        </main>
+      </div>
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(124, 58, 237, 0.5);
+        }
+        .glass-card {
+          background: rgba(255, 255, 255, 0.03);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          border-radius: 1.25rem;
+        }
+      `}</style>
     </div>
   );
 }
