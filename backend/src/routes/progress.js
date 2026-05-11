@@ -201,6 +201,7 @@ router.post('/update', authMiddleware, async (req, res) => {
     }
     const { totalDays: finalTotalDays } = await getCurriculum();
     progress.currentDay = Math.min(totalCompleted + 1, finalTotalDays);
+    user.lastActiveModule = moduleId;
 
     user.markModified('instituteProgress');
     await user.save();

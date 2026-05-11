@@ -34,6 +34,12 @@ const userSchema = new mongoose.Schema(
     friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     instituteProgress: { type: instituteProgressSchema, default: () => ({}) },
     fcmToken: { type: String, default: null },
+    achievements: [{
+      badgeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Badge' },
+      earnedAt: { type: Date, default: Date.now }
+    }],
+    lastActiveModule: { type: String, default: null },
+    totalSessions: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

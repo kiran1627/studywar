@@ -1,6 +1,9 @@
 const express = require('express');
 const User = require('../models/User');
 const Task = require('../models/Task');
+const Mission = require('../models/Mission');
+const Note = require('../models/Note');
+const Goal = require('../models/Goal');
 const authMiddleware = require('../middleware/auth');
 const { sendNotification } = require('../config/firebase');
 const router = express.Router();
@@ -98,11 +101,22 @@ router.get('/stats', authMiddleware, async (req, res) => {
     const monthCompleted = monthTasks.reduce((acc, t) => acc + (t.morning ? 1 : 0) + (t.evening ? 1 : 0), 0);
     const progress = Math.round((monthCompleted / maxSessions) * 100);
 
+    const user = await User.findById(userId);
+    let lastMod = null;
+    if (user.lastActiveModule) {
+      lastMod = await Module.findOne({ id: user.lastActiveModule });
+    }
+
     res.json({
       totalDays: tasks.length,
       totalCompleted: tasks.reduce((a, t) => a + (t.morning ? 1 : 0) + (t.evening ? 1 : 0), 0),
       monthProgress: progress,
       totalProblems: tasks.reduce((a, t) => a + t.problems, 0),
+      lastModule: lastMod ? {
+        id: lastMod.id,
+        title: lastMod.title,
+        progress: 0 // In a real app, calculate actual progress for this module
+      } : null
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
@@ -180,6 +194,115 @@ router.post('/fcm-token', authMiddleware, async (req, res) => {
     res.json({ message: 'FCM token saved successfully' });
   } catch (error) {
     console.error('FCM token save error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/* ═══════════════════════════════════════════
+   DAILY MISSIONS
+   ═══════════════════════════════════════════ */
+router.get('/missions', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const today = new Date().toISOString().split('T')[0];
+    
+    let missions = await Mission.find({ userId, date: today });
+    
+    if (missions.length === 0) {
+      // Seed daily missions
+      const defaultMissions = [
+        { title: 'Morning Focus', description: 'Complete your morning study session', xpReward: 50, type: 'study' },
+        { title: 'Code Warrior', description: 'Solve at least 5 coding problems', xpReward: 100, type: 'problem' },
+        { title: 'Consistency Check', description: 'Maintain your streak for another day', xpReward: 30, type: 'streak' },
+      ];
+      
+      missions = await Mission.insertMany(
+        defaultMissions.map(m => ({ ...m, userId, date: today }))
+      );
+    }
+    
+    res.json(missions);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.post('/missions/:id/complete', authMiddleware, async (req, res) => {
+  try {
+    const mission = await Mission.findOne({ _id: req.params.id, userId: req.user._id });
+    if (!mission) return res.status(404).json({ message: 'Mission not found' });
+    if (mission.completed) return res.status(400).json({ message: 'Already completed' });
+
+    mission.completed = true;
+    await mission.save();
+
+    const user = await User.findById(req.user._id);
+    user.xp = (user.xp || 0) + mission.xpReward;
+    await user.save();
+
+    res.json({ message: 'Mission completed!', xpEarned: mission.xpReward, totalXP: user.xp });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/* ═══════════════════════════════════════════
+   STUDY HEATMAP
+   ═══════════════════════════════════════════ */
+router.get('/heatmap', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const tasks = await Task.find({ userId }).select('date problems morning evening');
+    
+    const heatmapData = tasks.map(t => ({
+      date: t.date,
+      count: (t.morning ? 1 : 0) + (t.evening ? 1 : 0) + Math.floor(t.problems / 2),
+      problems: t.problems
+    }));
+    
+    res.json(heatmapData);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/* ═══════════════════════════════════════════
+   NOTES & GOALS
+   ═══════════════════════════════════════════ */
+router.get('/notes', authMiddleware, async (req, res) => {
+  try {
+    const notes = await Note.find({ userId: req.user._id }).sort({ updatedAt: -1 });
+    res.json(notes);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.post('/notes', authMiddleware, async (req, res) => {
+  try {
+    const note = new Note({ ...req.body, userId: req.user._id });
+    await note.save();
+    res.status(201).json(note);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.get('/goals', authMiddleware, async (req, res) => {
+  try {
+    const goals = await Goal.find({ userId: req.user._id });
+    res.json(goals);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.post('/goals', authMiddleware, async (req, res) => {
+  try {
+    const goal = new Goal({ ...req.body, userId: req.user._id });
+    await goal.save();
+    res.status(201).json(goal);
+  } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
 });

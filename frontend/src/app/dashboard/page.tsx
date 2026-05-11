@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import type { User } from '@/types/user';
 import Navbar from '@/components/Navbar';
 import ScoreCard from '@/components/ScoreCard';
 import StreakCard from '@/components/StreakCard';
@@ -12,21 +11,32 @@ import ProgressCard from '@/components/ProgressCard';
 import FocusTimer from '@/components/FocusTimer';
 import TasksPanel from '@/components/TasksPanel';
 import Leaderboard from '@/components/Leaderboard';
-import ProblemSection from '@/components/ProblemSection';
 import api from '@/lib/api';
-import AIPlanCard from '@/components/AIPlanCard';
-import ChallengeWidget from '@/components/ChallengeWidget';
+
+// New Widgets
+import LevelSystem from '@/components/dashboard/LevelSystem';
+import StudyHeatmap from '@/components/dashboard/StudyHeatmap';
+import DailyMissions from '@/components/dashboard/DailyMissions';
+import QuickResume from '@/components/dashboard/QuickResume';
 import SmartReminders from '@/components/SmartReminders';
+
 import { calculateXP, getLevel } from '@/utils/coach';
 
 interface UserStats {
-  totalDays: number; totalCompleted: number; monthProgress: number; totalProblems: number; xp?: number; level?: string;
+  totalDays: number;
+  totalCompleted: number;
+  monthProgress: number;
+  totalProblems: number;
+  xp?: number;
+  level?: string;
+  lastModule?: { id: string; title: string; progress: number };
 }
 
 export default function DashboardPage() {
   const { user, loading, refreshUser } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useState<UserStats>({ totalDays: 0, totalCompleted: 0, monthProgress: 0, totalProblems: 0 });
+  const [heatmapData, setHeatmapData] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => { 
@@ -34,98 +44,149 @@ export default function DashboardPage() {
     if (!loading && user?.role === 'admin') router.push('/admin');
   }, [user, loading, router]);
 
-  const fetchStats = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try { 
-      const res = await api.get('/api/user/stats'); 
-      const data = res.data;
+      const [statsRes, heatmapRes] = await Promise.all([
+        api.get('/api/user/stats'),
+        api.get('/api/user/heatmap')
+      ]);
       
-      // Calculate XP and level locally
+      const data = statsRes.data;
       data.xp = calculateXP(user, data);
       data.level = getLevel(data.xp);
       
-      setStats(data); 
-      // Cache data for offline use
+      setStats(data);
+      setHeatmapData(heatmapRes.data);
+      
       localStorage.setItem('studywar_offline_stats', JSON.stringify(data));
-      localStorage.setItem('studywar_offline_user', JSON.stringify(user));
     }
     catch (err) { 
-      console.error('Failed to fetch stats, loading from cache:', err); 
+      console.error('Data fetch error:', err);
       const cachedStats = localStorage.getItem('studywar_offline_stats');
-      if (cachedStats) {
-        setStats(JSON.parse(cachedStats));
-      }
+      if (cachedStats) setStats(JSON.parse(cachedStats));
     }
   }, [user]);
 
   useEffect(() => { 
     if (user) {
-      const cachedStats = localStorage.getItem('studywar_offline_stats');
-      if (cachedStats) setStats(JSON.parse(cachedStats));
-      fetchStats(); 
+      fetchData(); 
     }
-  }, [user, fetchStats, refreshKey]);
+  }, [user, fetchData, refreshKey]);
 
-  const handleSessionComplete = () => { setRefreshKey((k) => k + 1); refreshUser(); fetchStats(); };
+  const handleSessionComplete = () => { 
+    setRefreshKey((k) => k + 1); 
+    refreshUser(); 
+  };
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-dark-900">
+      <div className="min-h-screen flex items-center justify-center bg-dark-950">
         <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          className="w-10 h-10 border-2 border-neon-purple border-t-transparent rounded-full" />
+          className="w-10 h-10 border-2 border-neon-purple border-t-transparent rounded-full shadow-[0_0_15px_rgba(124,58,237,0.5)]" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-dark-900 bg-grid">
-      <div className="fixed top-0 left-0 w-full h-full pointer-events-none">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-neon-purple/5 rounded-full blur-[150px]" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-neon-blue/5 rounded-full blur-[150px]" />
+    <div className="min-h-screen bg-dark-950 text-white selection:bg-neon-purple/30">
+      {/* Background FX */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-neon-purple/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-neon-blue/5 rounded-full blur-[120px]" />
       </div>
+
       <Navbar />
-      <main className="relative z-10 pt-20 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="mb-4">
+
+      <main className="relative z-10 pt-20 pb-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        {/* Top Notification Bar */}
+        <div className="mb-6">
           <SmartReminders />
         </div>
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white">
-              Welcome back, <span className="neon-text">{user?.name?.split(' ')[0] || 'Warrior'}</span> 👋
-            </h1>
-          </div>
-          {stats.xp !== undefined && (
-            <div className="flex items-center gap-3">
-              <div className="px-3 py-1.5 rounded-full bg-neon-purple/10 border border-neon-purple/20 flex items-center gap-2">
-                <span className="text-sm font-semibold text-neon-purple">XP</span>
-                <span className="text-white font-bold">{stats.xp}</span>
-              </div>
-              <div className="px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center gap-2">
-                <span className="text-sm font-semibold text-blue-400">Level</span>
-                <span className="text-white font-bold">{stats.level}</span>
-              </div>
-            </div>
-          )}
-        </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <ScoreCard score={user.score} />
-          <StreakCard streak={user.streak} />
-          <ProgressCard progress={stats.monthProgress} totalProblems={stats.totalProblems} />
+        {/* Hero Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 items-start">
+          <div className="lg:col-span-2 space-y-6">
+            <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <motion.div 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+              >
+                <h1 className="text-3xl sm:text-4xl font-black italic tracking-tighter">
+                  LEVEL <span className="text-neon-purple underline decoration-4 underline-offset-4">{stats.level || '0'}</span> WARRIOR
+                </h1>
+                <p className="text-gray-500 font-bold uppercase text-[10px] tracking-[0.3em] mt-1">
+                  System Online // Session Active
+                </p>
+              </motion.div>
+              
+              <div className="flex gap-2">
+                <div className="glass-card px-4 py-2 border-neon-purple/20">
+                  <span className="text-neon-purple font-black mr-2">XP</span>
+                  <span className="font-bold">{stats.xp || 0}</span>
+                </div>
+                <div className="glass-card px-4 py-2 border-neon-blue/20">
+                  <span className="text-neon-blue font-black mr-2">RANK</span>
+                  <span className="font-bold">#42</span>
+                </div>
+              </div>
+            </header>
+
+            <QuickResume lastModule={stats.lastModule ? { _id: stats.lastModule.id, title: stats.lastModule.title, progress: stats.lastModule.progress || 0 } : undefined} />
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <ScoreCard score={user.score} />
+              <StreakCard streak={user.streak} />
+              <ProgressCard progress={stats.monthProgress} totalProblems={stats.totalProblems} />
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <LevelSystem xp={stats.xp || 0} level={stats.level || '0'} />
+            <DailyMissions />
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2 space-y-4">
-            <AIPlanCard streak={user.streak || 0} />
-            <FocusTimer onSessionComplete={handleSessionComplete} />
-            <TasksPanel key={refreshKey} />
+        {/* Secondary Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FocusTimer onSessionComplete={handleSessionComplete} />
+              <TasksPanel key={refreshKey} />
+            </div>
+            <StudyHeatmap data={heatmapData} />
           </div>
-          <div className="space-y-4">
-            <ChallengeWidget />
+          
+          <div className="space-y-6">
             <Leaderboard />
-            <ProblemSection />
+            <div className="glass-card p-5 bg-gradient-to-t from-red-500/5 to-transparent border-red-500/10">
+              <h3 className="text-xs font-black text-red-500 uppercase tracking-widest mb-4 italic">Active Challenges</h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center p-3 bg-dark-900/50 rounded-xl border border-red-500/10">
+                  <span className="text-xs font-bold text-white">Algorithm Sprint</span>
+                  <span className="text-[10px] text-red-500 font-black">2H REMAINING</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </main>
+
+      <style jsx global>{`
+        .glass-card {
+          background: rgba(255, 255, 255, 0.02);
+          backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          border-radius: 1.5rem;
+        }
+        .neon-text {
+          color: #7c3aed;
+          text-shadow: 0 0 10px rgba(124, 58, 237, 0.5);
+        }
+        .bg-dark-950 {
+          background: #050505;
+        }
+      `}</style>
     </div>
   );
 }
