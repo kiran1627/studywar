@@ -44,6 +44,14 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+userSchema.pre('save', function(next) {
+  if (this.isModified('xp')) {
+    this.level = Math.floor(this.xp / 1000);
+  }
+  next();
+});
+
 userSchema.index({ score: -1 });
+
 
 module.exports = mongoose.model('User', userSchema);

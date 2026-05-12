@@ -53,8 +53,14 @@ export function calculateXP(user: any, stats: any) {
 }
 
 export function getLevel(xp: number) {
-  if (xp < 100) return "Beginner";
-  if (xp < 300) return "Intermediate";
-  if (xp < 700) return "Pro";
-  return "Master";
+  return Math.floor(xp / 1000).toString();
 }
+
+export function getRank(xp: number) {
+  if (xp < 100) return "Novice";
+  if (xp < 300) return "Warrior";
+  if (xp < 700) return "Elite";
+  if (xp < 1200) return "Master";
+  return "Legend";
+}
+

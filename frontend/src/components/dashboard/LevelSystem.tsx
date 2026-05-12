@@ -3,12 +3,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-export default function LevelSystem({ xp, level }: { xp: number, level: string }) {
+export default function LevelSystem({ xp, level, rank }: { xp: number, level: string, rank: string }) {
   // Simple level logic: every 1000 XP is a level
   const currentLevel = parseInt(level) || 0;
   const nextLevelXP = (currentLevel + 1) * 1000;
   const prevLevelXP = currentLevel * 1000;
-  const progress = ((xp - prevLevelXP) / (nextLevelXP - prevLevelXP)) * 100;
+  const progress = Math.min(100, Math.max(0, ((xp - prevLevelXP) / (nextLevelXP - prevLevelXP)) * 100));
 
   return (
     <div className="glass-card p-5 overflow-hidden relative group">
@@ -20,8 +20,9 @@ export default function LevelSystem({ xp, level }: { xp: number, level: string }
         <div className="flex justify-between items-end mb-4">
           <div>
             <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">Rank Status</p>
-            <h3 className="text-xl font-black text-white italic">Level {currentLevel} <span className="text-neon-purple text-xs font-bold uppercase not-italic ml-2">Master</span></h3>
+            <h3 className="text-xl font-black text-white italic">Level {currentLevel} <span className="text-neon-purple text-xs font-bold uppercase not-italic ml-2">{rank}</span></h3>
           </div>
+
           <div className="text-right">
             <span className="text-xs font-bold text-white">{xp}</span>
             <span className="text-[10px] text-gray-500"> / {nextLevelXP} XP</span>

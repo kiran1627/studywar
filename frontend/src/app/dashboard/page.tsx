@@ -20,7 +20,7 @@ import DailyMissions from '@/components/dashboard/DailyMissions';
 import QuickResume from '@/components/dashboard/QuickResume';
 import SmartReminders from '@/components/SmartReminders';
 
-import { calculateXP, getLevel } from '@/utils/coach';
+import { calculateXP, getLevel, getRank } from '@/utils/coach';
 
 interface UserStats {
   totalDays: number;
@@ -29,6 +29,7 @@ interface UserStats {
   totalProblems: number;
   xp?: number;
   level?: string;
+  rank?: string;
   lastModule?: { id: string; title: string; progress: number };
 }
 
@@ -54,6 +55,7 @@ export default function DashboardPage() {
       const data = statsRes.data;
       data.xp = calculateXP(user, data);
       data.level = getLevel(data.xp);
+      data.rank = getRank(data.xp);
       
       setStats(data);
       setHeatmapData(heatmapRes.data);
@@ -142,7 +144,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="space-y-6">
-            <LevelSystem xp={stats.xp || 0} level={stats.level || '0'} />
+            <LevelSystem xp={stats.xp || 0} level={stats.level || '0'} rank={stats.rank || 'Novice'} />
             <DailyMissions />
           </div>
         </div>

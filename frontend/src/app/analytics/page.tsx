@@ -78,9 +78,10 @@ export default function AnalyticsPage() {
 
   // Level progress calculation
   const currentXP = user?.xp || 0;
-  const currentLevel = user?.level || 0;
+  const currentLevel = Math.floor(currentXP / 1000);
   const nextLevelXP = (currentLevel + 1) * 1000;
-  const levelProgress = Math.min(100, Math.round((currentXP / nextLevelXP) * 100));
+  const prevLevelXP = currentLevel * 1000;
+  const levelProgress = Math.min(100, Math.round(((currentXP - prevLevelXP) / (nextLevelXP - prevLevelXP)) * 100));
 
   const coachAdvice = getCoachAdvice({ 
     xp: currentXP, 
