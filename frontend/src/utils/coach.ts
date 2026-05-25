@@ -46,10 +46,10 @@ export function generatePlan(user: any) {
 }
 
 export function calculateXP(user: any, stats: any) {
-  // +40 per session, +10 per problem
+  // +20 per session, +5 per problem
   const sessions = stats?.totalCompleted || 0;
   const problems = stats?.totalProblems || 0;
-  return (sessions * 40) + (problems * 10);
+  return (sessions * 20) + (problems * 5);
 }
 
 export function getLevel(xp: number) {

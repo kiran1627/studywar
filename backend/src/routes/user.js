@@ -10,10 +10,11 @@ const router = express.Router();
 
 const calculateSessionScore = (sessionType, problems, currentStreak) => {
   let score = 0;
-  if (sessionType === 'morning' || sessionType === 'evening') score += 40;
-  if (problems >= 6) score += 20;
-  else if (problems >= 3) score += 10;
-  else if (problems >= 1) score += 5;
+  // Base XP: 20 per session completion
+  if (sessionType === 'morning' || sessionType === 'evening') score += 20;
+  // 5 XP per problem solved
+  score += Math.max(0, problems) * 5;
+  // Streak bonus (unchanged)
   if (currentStreak >= 7) score += 20;
   else if (currentStreak >= 5) score += 10;
   else if (currentStreak >= 3) score += 5;

@@ -19,6 +19,7 @@ import StudyHeatmap from '@/components/dashboard/StudyHeatmap';
 import DailyMissions from '@/components/dashboard/DailyMissions';
 import QuickResume from '@/components/dashboard/QuickResume';
 import SmartReminders from '@/components/SmartReminders';
+import FocusStats from '@/components/dashboard/FocusStats';
 
 import { calculateXP, getLevel, getRank } from '@/utils/coach';
 
@@ -154,8 +155,9 @@ export default function DashboardPage() {
           <div className="lg:col-span-2 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FocusTimer onSessionComplete={handleSessionComplete} />
-              <TasksPanel key={refreshKey} />
+              <FocusStats refreshKey={refreshKey} />
             </div>
+            <TasksPanel key={refreshKey} />
             <StudyHeatmap data={heatmapData} />
           </div>
           

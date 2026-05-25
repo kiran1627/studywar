@@ -21,7 +21,7 @@ taskSchema.post('save', async function (doc) {
     const tasks = await Task.find({ userId: doc.userId });
     const totalSessions = tasks.reduce((acc, t) => acc + (t.morning ? 1 : 0) + (t.evening ? 1 : 0), 0);
     const totalProblems = tasks.reduce((acc, t) => acc + (t.problems || 0), 0);
-    const xp = totalSessions * 40 + totalProblems * 10;
+    const xp = totalSessions * 20 + totalProblems * 5;
 
     let level = 0;
     if (xp >= 700) level = 3;

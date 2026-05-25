@@ -1,6 +1,7 @@
 const express = require('express');
 const User = require('../models/User');
 const Task = require('../models/Task');
+const FocusSession = require('../models/FocusSession');
 const Module = require('../models/Module');
 const Badge = require('../models/Badge');
 const Assignment = require('../models/Assignment');
@@ -815,6 +816,125 @@ router.post('/send-warning', async (req, res) => {
   } catch (error) {
     console.error('Send warning error:', error);
     res.status(500).json({ message: error.message || 'Failed to send warning email' });
+  }
+});
+
+/* ═══════════════════════════════════════════
+   GET /api/admin/focus-sessions
+   List all focus sessions with user info
+   ═══════════════════════════════════════════ */
+router.get('/focus-sessions', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const query = {};
+
+    if (startDate || endDate) {
+      query.date = {};
+      if (startDate) query.date.$gte = startDate;
+      if (endDate) query.date.$lte = endDate;
+    }
+
+    const sessions = await FocusSession.find(query)
+      .populate('userId', 'name email picture')
+      .sort({ createdAt: -1 })
+      .limit(500);
+
+    res.json(sessions);
+  } catch (error) {
+    console.error('Admin get focus sessions error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/* ═══════════════════════════════════════════
+   GET /api/admin/focus-sessions/analytics
+   Aggregate focus session analytics
+   ═══════════════════════════════════════════ */
+router.get('/focus-sessions/analytics', async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+    // All sessions
+    const allSessions = await FocusSession.find({ completed: true })
+      .populate('userId', 'name email picture');
+
+    // Today's sessions
+    const todaySessions = allSessions.filter(s => s.date === today);
+    const weekSessions = allSessions.filter(s => s.date >= sevenDaysAgoStr);
+
+    // Per-user aggregation
+    const userMap = {};
+    allSessions.forEach(s => {
+      const uid = s.userId?._id?.toString();
+      if (!uid) return;
+      if (!userMap[uid]) {
+        userMap[uid] = {
+          _id: uid,
+          name: s.userId.name,
+          email: s.userId.email,
+          picture: s.userId.picture,
+          totalSessions: 0,
+          totalProblems: 0,
+          totalXP: 0,
+          totalMinutes: 0,
+          lastSessionDate: null,
+        };
+      }
+      userMap[uid].totalSessions++;
+      userMap[uid].totalProblems += s.problemsSolved;
+      userMap[uid].totalXP += s.xpEarned;
+      userMap[uid].totalMinutes += s.focusMinutes;
+      if (!userMap[uid].lastSessionDate || s.date > userMap[uid].lastSessionDate) {
+        userMap[uid].lastSessionDate = s.date;
+      }
+    });
+
+    const perUserStats = Object.values(userMap).sort((a, b) => b.totalXP - a.totalXP);
+
+    // Daily activity (last 7 days)
+    const dailyActivity = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      const dateStr = d.toISOString().split('T')[0];
+      const daySessions = allSessions.filter(s => s.date === dateStr);
+      return {
+        date: dateStr,
+        sessions: daySessions.length,
+        problems: daySessions.reduce((acc, s) => acc + s.problemsSolved, 0),
+        xp: daySessions.reduce((acc, s) => acc + s.xpEarned, 0),
+        uniqueUsers: new Set(daySessions.map(s => s.userId?._id?.toString())).size,
+      };
+    });
+
+    // Topic breakdown
+    const topicCounts = {};
+    allSessions.forEach(s => {
+      const t = s.topic || 'General';
+      topicCounts[t] = (topicCounts[t] || 0) + 1;
+    });
+
+    res.json({
+      summary: {
+        totalSessions: allSessions.length,
+        totalProblems: allSessions.reduce((acc, s) => acc + s.problemsSolved, 0),
+        totalXP: allSessions.reduce((acc, s) => acc + s.xpEarned, 0),
+        totalMinutes: allSessions.reduce((acc, s) => acc + s.focusMinutes, 0),
+        todaySessions: todaySessions.length,
+        todayProblems: todaySessions.reduce((acc, s) => acc + s.problemsSolved, 0),
+        todayXP: todaySessions.reduce((acc, s) => acc + s.xpEarned, 0),
+        weekSessions: weekSessions.length,
+        activeUsersToday: new Set(todaySessions.map(s => s.userId?._id?.toString())).size,
+      },
+      perUserStats,
+      dailyActivity,
+      topicBreakdown: topicCounts,
+    });
+  } catch (error) {
+    console.error('Admin focus analytics error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

@@ -21,6 +21,7 @@ import MockTestCreator from '@/components/admin/modules/MockTestCreator';
 import BatchManager from '@/components/admin/modules/BatchManager';
 import Announcements from '@/components/admin/modules/Announcements';
 import AdminCertificates from '@/components/admin/modules/AdminCertificates';
+import FocusSessionTracker from '@/components/admin/modules/FocusSessionTracker';
 
 import api from '@/lib/api';
 
@@ -37,7 +38,8 @@ type Tab =
   | 'risk' 
   | 'reports' 
   | 'leaderboard'
-  | 'notifications';
+  | 'notifications'
+  | 'focus-tracker';
 
 export default function AdminPage() {
   const { user, loading } = useAuth();
@@ -98,6 +100,7 @@ export default function AdminPage() {
     { key: 'announcements', label: 'Announcements', icon: '📢', group: 'Communication' },
     { key: 'notifications', label: 'Push Alerts', icon: '🔔', group: 'Communication' },
     { key: 'risk', label: 'Risk Detection', icon: '⚠️', group: 'Analytics' },
+    { key: 'focus-tracker', label: 'Focus Tracker', icon: '🎯', group: 'Analytics' },
     { key: 'reports', label: 'Platform Reports', icon: '📄', group: 'Analytics' },
     { key: 'leaderboard', label: 'Leaderboard', icon: '🥇', group: 'Analytics' },
   ];
@@ -216,6 +219,7 @@ export default function AdminPage() {
                 {activeTab === 'announcements' && <Announcements />}
                 {activeTab === 'notifications' && <AdminNotificationControl />}
                 {activeTab === 'risk' && <RiskDetection />}
+                {activeTab === 'focus-tracker' && <FocusSessionTracker />}
                 {activeTab === 'reports' && <AdminReports />}
                 {activeTab === 'leaderboard' && <AdminLeaderboard users={users} />}
               </motion.div>
