@@ -36,7 +36,7 @@ export default function QuickResume({ lastModule }: { lastModule?: Module }) {
           </div>
         </div>
         
-        <Link href={`/classroom?module=${lastModule._id}`}>
+        <Link href={`/institute`}>
           <button className="bg-white text-dark-950 px-8 py-3 rounded-xl font-black text-sm hover:scale-105 transition-all shadow-xl shadow-white/10 active:scale-95">
             RESUME LEARNING
           </button>

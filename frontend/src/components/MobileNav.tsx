@@ -21,7 +21,6 @@ export default function MobileNav() {
     : [
         { name: 'Dashboard', path: '/dashboard', icon: '🏠' },
         { name: 'Institute', path: '/institute', icon: '🏛️' },
-        { name: 'Classroom', path: '/classroom', icon: '📚' },
         { name: 'Analytics', path: '/analytics', icon: '📊' },
         { name: 'Profile', path: '/profile', icon: '👤' },
       ];
