@@ -938,6 +938,172 @@ router.get('/focus-sessions/analytics', async (req, res) => {
   }
 });
 
+/* ═══════════════════════════════════════════
+   GET /api/admin/institute-sessions/analytics
+   Platform-wide institute session analytics
+   ═══════════════════════════════════════════ */
+router.get('/institute-sessions/analytics', async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+    const allSessions = await FocusSession.find({
+      sessionType: 'institute',
+      completed: true,
+    }).populate('userId', 'name email picture');
+
+    const todaySessions = allSessions.filter(s => s.date === today);
+    const weekSessions = allSessions.filter(s => s.date >= sevenDaysAgoStr);
+
+    // Per-user aggregation
+    const userMap = {};
+    allSessions.forEach(s => {
+      const uid = s.userId?._id?.toString();
+      if (!uid) return;
+      if (!userMap[uid]) {
+        userMap[uid] = {
+          _id: uid,
+          name: s.userId.name,
+          email: s.userId.email,
+          picture: s.userId.picture,
+          totalSessions: 0,
+          totalProblems: 0,
+          totalXP: 0,
+          totalMinutes: 0,
+          lastSessionDate: null,
+          dates: new Set(),
+          firstDate: null,
+        };
+      }
+      userMap[uid].totalSessions++;
+      userMap[uid].totalProblems += s.problemsSolved;
+      userMap[uid].totalXP += s.xpEarned;
+      userMap[uid].totalMinutes += s.focusMinutes;
+      userMap[uid].dates.add(s.date);
+      if (!userMap[uid].lastSessionDate || s.date > userMap[uid].lastSessionDate) {
+        userMap[uid].lastSessionDate = s.date;
+      }
+      if (!userMap[uid].firstDate || s.date < userMap[uid].firstDate) {
+        userMap[uid].firstDate = s.date;
+      }
+    });
+
+    // Calculate attendance per user
+    const perUserStats = Object.values(userMap).map(u => {
+      let attendance = 0;
+      if (u.firstDate) {
+        const first = new Date(u.firstDate + 'T12:00:00');
+        const now = new Date();
+        const totalDays = Math.max(1, Math.ceil((now - first) / 86400000) + 1);
+        attendance = Math.round((u.dates.size / totalDays) * 100);
+      }
+      return {
+        _id: u._id,
+        name: u.name,
+        email: u.email,
+        picture: u.picture,
+        totalSessions: u.totalSessions,
+        totalProblems: u.totalProblems,
+        totalXP: u.totalXP,
+        totalMinutes: u.totalMinutes,
+        lastSessionDate: u.lastSessionDate,
+        attendance,
+      };
+    }).sort((a, b) => b.totalXP - a.totalXP);
+
+    // Daily activity (last 7 days)
+    const dailyActivity = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      const dateStr = d.toISOString().split('T')[0];
+      const daySessions = allSessions.filter(s => s.date === dateStr);
+      return {
+        date: dateStr,
+        sessions: daySessions.length,
+        minutes: daySessions.reduce((acc, s) => acc + s.focusMinutes, 0),
+        problems: daySessions.reduce((acc, s) => acc + s.problemsSolved, 0),
+        xp: daySessions.reduce((acc, s) => acc + s.xpEarned, 0),
+        uniqueUsers: new Set(daySessions.map(s => s.userId?._id?.toString())).size,
+      };
+    });
+
+    // Topic breakdown
+    const topicCounts = {};
+    allSessions.forEach(s => {
+      const t = s.topic || 'General';
+      topicCounts[t] = (topicCounts[t] || 0) + 1;
+    });
+
+    // Difficulty distribution
+    const difficultyDist = { easy: 0, medium: 0, hard: 0, expert: 0 };
+    allSessions.forEach(s => {
+      difficultyDist[s.difficulty || 'medium']++;
+    });
+
+    res.json({
+      summary: {
+        totalSessions: allSessions.length,
+        totalProblems: allSessions.reduce((acc, s) => acc + s.problemsSolved, 0),
+        totalXP: allSessions.reduce((acc, s) => acc + s.xpEarned, 0),
+        totalMinutes: allSessions.reduce((acc, s) => acc + s.focusMinutes, 0),
+        todaySessions: todaySessions.length,
+        todayMinutes: todaySessions.reduce((acc, s) => acc + s.focusMinutes, 0),
+        todayXP: todaySessions.reduce((acc, s) => acc + s.xpEarned, 0),
+        weekSessions: weekSessions.length,
+        activeUsersToday: new Set(todaySessions.map(s => s.userId?._id?.toString())).size,
+      },
+      perUserStats,
+      dailyActivity,
+      topicBreakdown: topicCounts,
+      difficultyDistribution: difficultyDist,
+    });
+  } catch (error) {
+    console.error('Admin institute analytics error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/* ═══════════════════════════════════════════
+   GET /api/admin/institute-sessions/export
+   CSV export of institute sessions
+   ═══════════════════════════════════════════ */
+router.get('/institute-sessions/export', async (req, res) => {
+  try {
+    const { startDate, endDate, userId } = req.query;
+    const query = { sessionType: 'institute', completed: true };
+
+    if (startDate || endDate) {
+      query.date = {};
+      if (startDate) query.date.$gte = startDate;
+      if (endDate) query.date.$lte = endDate;
+    }
+    if (userId) query.userId = userId;
+
+    const sessions = await FocusSession.find(query)
+      .populate('userId', 'name email')
+      .sort({ date: -1, createdAt: -1 })
+      .limit(5000);
+
+    // Build CSV
+    const header = 'User,Email,Date,Duration (min),Topic,Difficulty,Problems,XP,Notes\n';
+    const rows = sessions.map(s => {
+      const name = (s.userId?.name || 'Unknown').replace(/,/g, ' ');
+      const email = s.userId?.email || '';
+      const notes = (s.notes || '').replace(/,/g, ' ').replace(/\n/g, ' ');
+      return `${name},${email},${s.date},${s.focusMinutes},${s.topic || 'General'},${s.difficulty || 'medium'},${s.problemsSolved},${s.xpEarned},"${notes}"`;
+    }).join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=institute-sessions.csv');
+    res.send(header + rows);
+  } catch (error) {
+    console.error('Admin institute export error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;
 
 

@@ -12,6 +12,8 @@ interface TodaySummary {
   totalXP: number;
   totalMinutes: number;
   sessionsCompleted: number;
+  instituteCount: number;
+  instituteMinutes: number;
 }
 
 interface FocusStatsProps {
@@ -26,14 +28,25 @@ const FocusStats: React.FC<FocusStatsProps> = ({ refreshKey }) => {
     totalXP: 0,
     totalMinutes: 0,
     sessionsCompleted: 0,
+    instituteCount: 0,
+    instituteMinutes: 0,
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchToday = async () => {
       try {
-        const res = await api.get('/api/focus-sessions/today');
-        setSummary(res.data.summary);
+        const [focusRes, instituteRes] = await Promise.all([
+          api.get('/api/focus-sessions/today'),
+          api.get('/api/institute-sessions/today').catch(() => ({ data: { summary: { sessionCount: 0, totalMinutes: 0 } } })),
+        ]);
+        const focusSummary = focusRes.data.summary;
+        const instSummary = instituteRes.data.summary;
+        setSummary({
+          ...focusSummary,
+          instituteCount: instSummary.sessionCount || 0,
+          instituteMinutes: instSummary.totalMinutes || 0,
+        });
       } catch (err) {
         console.error('Failed to fetch focus stats:', err);
       } finally {
@@ -55,6 +68,13 @@ const FocusStats: React.FC<FocusStatsProps> = ({ refreshKey }) => {
       icon: '🌙',
       done: summary.eveningDone,
       color: '#7c3aed',
+    },
+    {
+      label: 'Institute',
+      icon: '🏛️',
+      done: summary.instituteCount > 0,
+      color: '#f97316',
+      count: summary.instituteCount,
     },
   ];
 
@@ -99,7 +119,10 @@ const FocusStats: React.FC<FocusStatsProps> = ({ refreshKey }) => {
                         item.done ? 'text-[#00ff88]' : 'text-gray-600'
                       }`}
                     >
-                      {item.done ? '✓ Done' : 'Pending'}
+                      {item.done
+                        ? ('count' in item && item.count ? `✓ ${item.count} done` : '✓ Done')
+                        : 'Pending'
+                      }
                     </p>
                   </div>
                 </div>
@@ -145,7 +168,7 @@ const FocusStats: React.FC<FocusStatsProps> = ({ refreshKey }) => {
             </div>
 
             {/* Completion indicator */}
-            {summary.morningDone && summary.eveningDone && (
+            {summary.morningDone && summary.eveningDone && summary.instituteCount > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}

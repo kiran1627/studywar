@@ -9,6 +9,7 @@ import ScoreCard from '@/components/ScoreCard';
 import StreakCard from '@/components/StreakCard';
 import ProgressCard from '@/components/ProgressCard';
 import FocusTimer from '@/components/FocusTimer';
+import InstituteFocusTimer from '@/components/InstituteFocusTimer';
 import TasksPanel from '@/components/TasksPanel';
 import Leaderboard from '@/components/Leaderboard';
 import api from '@/lib/api';
@@ -155,8 +156,9 @@ export default function DashboardPage() {
           <div className="lg:col-span-2 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FocusTimer onSessionComplete={handleSessionComplete} />
-              <FocusStats refreshKey={refreshKey} />
+              <InstituteFocusTimer onSessionComplete={handleSessionComplete} />
             </div>
+            <FocusStats refreshKey={refreshKey} />
             <TasksPanel key={refreshKey} />
             <StudyHeatmap data={heatmapData} />
           </div>

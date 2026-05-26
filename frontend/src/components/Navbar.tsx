@@ -29,6 +29,7 @@ const Navbar: React.FC = () => {
                 <>
                   <Link href="/dashboard" className="hover:text-neon-purple transition">Dashboard</Link>
                   <Link href="/institute" className="hover:text-neon-purple transition">Institute</Link>
+                  <Link href="/focus/institute" className="hover:text-[#f97316] transition">Institute Study</Link>
                   <Link href="/classroom" className="hover:text-neon-purple transition">Classroom</Link>
                   <Link href="/analytics" className="hover:text-neon-purple transition">Analytics</Link>
                   <Link href="/focus" className="hover:text-neon-purple transition">Focus Mode</Link>

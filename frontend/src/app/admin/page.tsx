@@ -22,6 +22,7 @@ import BatchManager from '@/components/admin/modules/BatchManager';
 import Announcements from '@/components/admin/modules/Announcements';
 import AdminCertificates from '@/components/admin/modules/AdminCertificates';
 import FocusSessionTracker from '@/components/admin/modules/FocusSessionTracker';
+import InstituteAnalytics from '@/components/admin/modules/InstituteAnalytics';
 
 import api from '@/lib/api';
 
@@ -39,7 +40,8 @@ type Tab =
   | 'reports' 
   | 'leaderboard'
   | 'notifications'
-  | 'focus-tracker';
+  | 'focus-tracker'
+  | 'institute-analytics';
 
 export default function AdminPage() {
   const { user, loading } = useAuth();
@@ -101,6 +103,7 @@ export default function AdminPage() {
     { key: 'notifications', label: 'Push Alerts', icon: '🔔', group: 'Communication' },
     { key: 'risk', label: 'Risk Detection', icon: '⚠️', group: 'Analytics' },
     { key: 'focus-tracker', label: 'Focus Tracker', icon: '🎯', group: 'Analytics' },
+    { key: 'institute-analytics', label: 'Institute Study', icon: '🏛️', group: 'Analytics' },
     { key: 'reports', label: 'Platform Reports', icon: '📄', group: 'Analytics' },
     { key: 'leaderboard', label: 'Leaderboard', icon: '🥇', group: 'Analytics' },
   ];
@@ -220,6 +223,7 @@ export default function AdminPage() {
                 {activeTab === 'notifications' && <AdminNotificationControl />}
                 {activeTab === 'risk' && <RiskDetection />}
                 {activeTab === 'focus-tracker' && <FocusSessionTracker />}
+                {activeTab === 'institute-analytics' && <InstituteAnalytics />}
                 {activeTab === 'reports' && <AdminReports />}
                 {activeTab === 'leaderboard' && <AdminLeaderboard users={users} />}
               </motion.div>

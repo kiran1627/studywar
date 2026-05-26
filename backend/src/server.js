@@ -20,6 +20,7 @@ const challengeRoutes = require('./routes/challenge');
 const progressRoutes = require('./routes/progress');
 const adminRoutes = require('./routes/admin');
 const focusSessionRoutes = require('./routes/focusSession');
+const instituteSessionRoutes = require('./routes/instituteSession');
 
 const app = express();
 const server = http.createServer(app);
@@ -63,6 +64,7 @@ app.use('/api/challenge', challengeRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/focus-sessions', focusSessionRoutes);
+app.use('/api/institute-sessions', instituteSessionRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
