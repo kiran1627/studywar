@@ -27,36 +27,99 @@ const FocusTimer: React.FC<FocusTimerProps> = ({ onSessionComplete }) => {
   const startTimeRef = useRef<number | null>(null);
   const elapsedRef = useRef<number>(0);
 
+  const expectedEndTimeRef = useRef<number | null>(null);
+
+  // Load state on mount
   useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour >= 21 && hour < 23) setSessionType('evening');
-    else setSessionType('morning');
+    const saved = localStorage.getItem('focusTimer_state');
+    let loadedRunning = false;
+    
+    if (saved) {
+      try {
+        const state = JSON.parse(saved);
+        if (state.isRunning && state.expectedEndTime) {
+          const now = Date.now();
+          const remaining = Math.max(0, Math.round((state.expectedEndTime - now) / 1000));
+          if (remaining <= 0) {
+            // Timer finished while closed
+            setTimeLeft(0);
+            setIsRunning(false);
+            if (state.startTime) {
+              elapsedRef.current = state.elapsed + Math.round((now - state.startTime) / 60000);
+            }
+            setShowModal(true);
+          } else {
+            // Timer still running
+            setTimeLeft(remaining);
+            setIsRunning(true);
+            expectedEndTimeRef.current = state.expectedEndTime;
+            startTimeRef.current = state.startTime;
+            elapsedRef.current = state.elapsed || 0;
+            loadedRunning = true;
+          }
+          if (state.sessionType) setSessionType(state.sessionType);
+        } else {
+          // Paused or not running
+          setTimeLeft(state.timeLeft || TOTAL_SECONDS);
+          setIsRunning(false);
+          startTimeRef.current = state.startTime;
+          elapsedRef.current = state.elapsed || 0;
+          if (state.sessionType) setSessionType(state.sessionType);
+        }
+      } catch (e) {
+        console.error('Failed to parse timer state', e);
+      }
+    }
+    
+    if (!loadedRunning) {
+      const hour = new Date().getHours();
+      if (hour >= 21 && hour < 23) setSessionType('evening');
+      else setSessionType('morning');
+    }
   }, []);
 
+  // Save state on change
   useEffect(() => {
-    if (isRunning && timeLeft > 0) {
+    const state = {
+      isRunning,
+      timeLeft,
+      expectedEndTime: expectedEndTimeRef.current,
+      startTime: startTimeRef.current,
+      elapsed: elapsedRef.current,
+      sessionType
+    };
+    localStorage.setItem('focusTimer_state', JSON.stringify(state));
+  }, [isRunning, timeLeft, sessionType]);
+
+  useEffect(() => {
+    if (isRunning) {
       if (!startTimeRef.current) {
         startTimeRef.current = Date.now();
       }
+      // Set the expected end time based on the current timeLeft
+      expectedEndTimeRef.current = Date.now() + timeLeft * 1000;
+
       intervalRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            clearInterval(intervalRef.current!);
-            setIsRunning(false);
-            // Calculate elapsed time in minutes
-            if (startTimeRef.current) {
-              elapsedRef.current += Math.round((Date.now() - startTimeRef.current) / 60000);
-              startTimeRef.current = null;
-            }
-            setShowModal(true);
-            return 0;
+        const now = Date.now();
+        const remaining = Math.max(0, Math.round((expectedEndTimeRef.current! - now) / 1000));
+
+        if (remaining <= 0) {
+          clearInterval(intervalRef.current!);
+          setIsRunning(false);
+          if (startTimeRef.current) {
+            elapsedRef.current += Math.round((now - startTimeRef.current) / 60000);
+            startTimeRef.current = null;
           }
-          return prev - 1;
-        });
+          setTimeLeft(0);
+          setShowModal(true);
+        } else {
+          setTimeLeft(remaining);
+        }
       }, 1000);
     }
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [isRunning, timeLeft]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRunning]);
 
   const startTimer = () => {
     setIsRunning(true);

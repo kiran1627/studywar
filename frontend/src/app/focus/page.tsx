@@ -20,13 +20,74 @@ export default function FocusPage() {
 
   const startTimeRef = useRef<number | null>(null);
   const elapsedRef = useRef<number>(0);
+  const expectedEndTimeRef = useRef<number | null>(null);
+  const soundOnRef = useRef(soundOn);
 
-  // Auto-detect session type
   useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour >= 21 && hour < 23) setSessionType('evening');
-    else setSessionType('morning');
+    soundOnRef.current = soundOn;
+  }, [soundOn]);
+
+  // Load state on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('deepFocusTimer_state');
+    let loadedRunning = false;
+    
+    if (saved) {
+      try {
+        const state = JSON.parse(saved);
+        if (state.isActive && state.expectedEndTime) {
+          const now = Date.now();
+          const remaining = Math.max(0, Math.round((state.expectedEndTime - now) / 1000));
+          if (remaining <= 0) {
+            // Timer finished while closed
+            setSeconds(0);
+            setIsActive(false);
+            if (state.startTime) {
+              elapsedRef.current = (state.elapsed || 0) + Math.round((now - state.startTime) / 60000);
+            }
+            setShowModal(true);
+          } else {
+            // Timer still running
+            setSeconds(remaining);
+            setIsActive(true);
+            expectedEndTimeRef.current = state.expectedEndTime;
+            startTimeRef.current = state.startTime;
+            elapsedRef.current = state.elapsed || 0;
+            loadedRunning = true;
+          }
+          if (state.sessionType) setSessionType(state.sessionType);
+        } else {
+          // Paused or not running
+          setSeconds(state.seconds || (25 * 60));
+          setIsActive(false);
+          startTimeRef.current = state.startTime;
+          elapsedRef.current = state.elapsed || 0;
+          if (state.sessionType) setSessionType(state.sessionType);
+        }
+      } catch (e) {
+        console.error('Failed to parse timer state', e);
+      }
+    }
+    
+    if (!loadedRunning) {
+      const hour = new Date().getHours();
+      if (hour >= 21 && hour < 23) setSessionType('evening');
+      else setSessionType('morning');
+    }
   }, []);
+
+  // Save state on change
+  useEffect(() => {
+    const state = {
+      isActive,
+      seconds,
+      expectedEndTime: expectedEndTimeRef.current,
+      startTime: startTimeRef.current,
+      elapsed: elapsedRef.current,
+      sessionType
+    };
+    localStorage.setItem('deepFocusTimer_state', JSON.stringify(state));
+  }, [isActive, seconds, sessionType]);
 
   // Fetch today's session status
   useEffect(() => {
@@ -48,33 +109,43 @@ export default function FocusPage() {
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
 
-    if (isActive && seconds > 0) {
+    if (isActive) {
       if (!startTimeRef.current) {
         startTimeRef.current = Date.now();
       }
+      
+      expectedEndTimeRef.current = Date.now() + seconds * 1000;
+
       interval = setInterval(() => {
-        setSeconds((prev) => prev - 1);
+        const now = Date.now();
+        const remaining = Math.max(0, Math.round((expectedEndTimeRef.current! - now) / 1000));
+
+        if (remaining <= 0) {
+          clearInterval(interval!);
+          setIsActive(false);
+          // Track elapsed time
+          if (startTimeRef.current) {
+            elapsedRef.current += Math.round((now - startTimeRef.current) / 60000);
+            startTimeRef.current = null;
+          }
+          // Play alarm
+          if (soundOnRef.current) {
+            const alarm = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-73.wav');
+            alarm.play().catch(e => console.log('Audio play failed', e));
+          }
+          setSeconds(0);
+          setShowModal(true);
+        } else {
+          setSeconds(remaining);
+        }
       }, 1000);
-    } else if (seconds === 0 && isActive) {
-      setIsActive(false);
-      // Track elapsed time
-      if (startTimeRef.current) {
-        elapsedRef.current += Math.round((Date.now() - startTimeRef.current) / 60000);
-        startTimeRef.current = null;
-      }
-      // Play alarm
-      if (soundOn) {
-        const alarm = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-73.wav');
-        alarm.play().catch(e => console.log('Audio play failed', e));
-      }
-      // Show completion modal
-      setShowModal(true);
     }
 
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isActive, seconds, soundOn]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive]);
 
   useEffect(() => {
     if (soundOn) {

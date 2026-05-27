@@ -152,6 +152,7 @@ router.post('/', async (req, res) => {
     }
 
     user.xp = (user.xp || 0) + session.xpEarned;
+    user.score = (user.score || 0) + session.xpEarned;
     user.streak = newStreak;
     user.lastActiveDate = today;
     user.totalSessions = (user.totalSessions || 0) + 1;
