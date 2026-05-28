@@ -77,9 +77,7 @@ const InstituteFocusTimer: React.FC<InstituteFocusTimerProps> = ({ onSessionComp
       startTimeRef.current = null;
     }
     setElapsedSeconds(pausedElapsedRef.current);
-    if (pausedElapsedRef.current >= 60) {
-      setShowModal(true);
-    }
+    setShowModal(true);
   };
 
   const resetTimer = () => {
